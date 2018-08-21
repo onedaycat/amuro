@@ -1,5 +1,5 @@
 #if( $context.result && $context.result.error )
-    $utils.error($context.result.message, $context.result.errorType, $context.result.data)
+    $utils.error($context.result.error.message, $context.result.error.code, $context.result.data)
 #else
     $utils.toJson($context.result.data)
 #end
