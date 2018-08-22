@@ -16,7 +16,7 @@ type Identity struct {
 
 type Event struct {
 	Field    string          `json:"field"`
-	Args     json.RawMessage `json:"args"`
+	Args     json.RawMessage `json:"arguments"`
 	Source   json.RawMessage `json:"source"`
 	Identity *Identity       `json:"identity"`
 }
