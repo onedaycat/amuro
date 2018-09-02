@@ -7,10 +7,11 @@
         "source": $utils.toJson($context.source),
         "identity": {
             "id": "${context.identity.sub}",
-            "username": "${context.identity.username}",
             "email": "${context.identity.claims.email}",
-            "groups": $context.identity.groups,
-            "ip": "${context.identity.sourceIp[0]}"
+            "ip": "${context.identity.sourceIp[0]}",
+            #if( ${context.identity.groups} )
+                ,"groups": $context.identity.groups
+            #end
         }
     }
 }
