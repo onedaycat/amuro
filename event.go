@@ -8,11 +8,10 @@ import (
 )
 
 type Identity struct {
-	ID       string   `json:"id"`
-	Username string   `json:"username"`
-	Email    string   `json:"email"`
-	Groups   []string `json:"groups"`
-	IP       string   `json:"ip"`
+	ID     string   `json:"id"`
+	Email  string   `json:"email"`
+	Groups []string `json:"groups"`
+	IP     string   `json:"ip"`
 }
 
 type Event struct {
