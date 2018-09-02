@@ -3,15 +3,16 @@ package appsync
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	"github.com/onedaycat/errors"
 )
 
 type Identity struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
-	UserArn  string `json:"userArn"`
+	ID       string   `json:"id"`
+	Username string   `json:"username"`
+	Email    string   `json:"email"`
+	Groups   []string `json:"groups"`
+	IP       string   `json:"ip"`
 }
 
 type Event struct {
@@ -35,15 +36,22 @@ func (e *Event) ParseSource(v interface{}) error {
 }
 
 type EventHandler func(ctx context.Context, event *Event) (interface{}, error)
+type ErrorHandler func(ctx context.Context, event *Event, err error)
 
 type EventManager struct {
-	fields map[string]EventHandler
+	fields       map[string]EventHandler
+	errorHandler ErrorHandler
 }
 
 func NewEventManager() *EventManager {
 	return &EventManager{
-		fields: make(map[string]EventHandler),
+		fields:       make(map[string]EventHandler),
+		errorHandler: func(ctx context.Context, event *Event, err error) {},
 	}
+}
+
+func (e *EventManager) OnError(handler ErrorHandler) {
+	e.errorHandler = handler
 }
 
 func (e *EventManager) RegisterField(field string, handler EventHandler) {
@@ -54,6 +62,7 @@ func (e *EventManager) Run(ctx context.Context, event *Event) (*Result, error) {
 	if handler, ok := e.fields[event.Field]; ok {
 		data, err := handler(ctx, event)
 		if err != nil {
+			e.errorHandler(ctx, event, err)
 			appErr, ok := errors.FromError(err)
 			if ok {
 				return &Result{
@@ -74,5 +83,12 @@ func (e *EventManager) Run(ctx context.Context, event *Event) (*Result, error) {
 		}, nil
 	}
 
-	return nil, fmt.Errorf("Not found handler on field %s", event.Field)
+	err := errors.InternalErrorf("FIELD_NOT_FOUND", "Not found handler on field %s", event.Field)
+	e.errorHandler(ctx, event, err)
+
+	return nil, err
+}
+
+func (e *EventManager) DefaultHandler(ctx context.Context, event *Event) (interface{}, error) {
+	return e.Run(ctx, event)
 }

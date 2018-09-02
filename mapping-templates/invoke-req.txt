@@ -5,6 +5,12 @@
         "field": "",
         "arguments": $utils.toJson($context.arguments),
         "source": $utils.toJson($context.source),
-        "identity": $utils.toJson($context.identity)
+        "identity": {
+            id: $context.identity.sub,
+            username: $context.identity.username,
+            email: $context.identity.claims.email,
+            groups: $context.identity.groups,
+            ip: $context.identity.groups.sourceIp[0]
+        }
     }
 }
