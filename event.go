@@ -36,10 +36,12 @@ func (e *Event) ParseSource(v interface{}) error {
 
 type EventHandler func(ctx context.Context, event *Event) (interface{}, error)
 type ErrorHandler func(ctx context.Context, event *Event, err error)
+type Middleware func(next EventHandler) EventHandler
 
 type EventManager struct {
 	fields       map[string]EventHandler
 	errorHandler ErrorHandler
+	middlewares  []EventHandler
 }
 
 func NewEventManager() *EventManager {
@@ -57,7 +59,22 @@ func (e *EventManager) RegisterField(field string, handler EventHandler) {
 	e.fields[field] = handler
 }
 
-func (e *EventManager) Run(ctx context.Context, event *Event) (*Result, error) {
+func (e *EventManager) RegisterMiddleware(middleware EventHandler) {
+	e.middlewares = append(e.middlewares, middleware)
+}
+
+func (e *EventManager) Run(ctx context.Context, event *Event) (interface{}, error) {
+	for _, middlewareFunc := range e.middlewares {
+		_, err := middlewareFunc(ctx, event)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return e.runHandler(ctx, event)
+}
+
+func (e *EventManager) runHandler(ctx context.Context, event *Event) (*Result, error) {
 	if handler, ok := e.fields[event.Field]; ok {
 		data, err := handler(ctx, event)
 		if err != nil {
