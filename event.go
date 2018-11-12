@@ -100,14 +100,14 @@ func (e *EventManager) Run(ctx context.Context, event *Event) (*Result, error) {
 		var err error
 		for _, preHandler := range e.preHandlers {
 			if _, err = preHandler(ctx, event); err != nil {
-				e.runHandleError(ctx, event, err, data)
+				return e.runHandleError(ctx, event, err, data)
 			}
 		}
 
 		for _, handler := range mainHandlers {
 			result, err := handler(ctx, event)
 			if err != nil {
-				e.runHandleError(ctx, event, err, data)
+				return e.runHandleError(ctx, event, err, data)
 			}
 
 			if result != nil {
@@ -117,7 +117,7 @@ func (e *EventManager) Run(ctx context.Context, event *Event) (*Result, error) {
 
 		for _, postHandler := range e.postHandlers {
 			if _, err = postHandler(ctx, event); err != nil {
-				e.runHandleError(ctx, event, err, data)
+				return e.runHandleError(ctx, event, err, data)
 			}
 		}
 
