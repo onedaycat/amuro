@@ -34,17 +34,17 @@ func (e *Event) ParseSource(v interface{}) error {
 	return json.Unmarshal(e.Args, v)
 }
 
-type EventHandler func(ctx context.Context, event *Event) (interface{}, error)
+type EventHandler func(ctx EventContext, event *Event) (interface{}, error)
 type ErrorHandler func(ctx context.Context, event *Event, err error)
 
 type EventManager struct {
-	fields       map[string]EventHandler
+	fields       map[string][]EventHandler
 	errorHandler ErrorHandler
 }
 
 func NewEventManager() *EventManager {
 	return &EventManager{
-		fields:       make(map[string]EventHandler),
+		fields:       make(map[string][]EventHandler),
 		errorHandler: func(ctx context.Context, event *Event, err error) {},
 	}
 }
@@ -53,13 +53,19 @@ func (e *EventManager) OnError(handler ErrorHandler) {
 	e.errorHandler = handler
 }
 
-func (e *EventManager) RegisterField(field string, handler EventHandler) {
-	e.fields[field] = handler
+func (e *EventManager) RegisterField(field string, handlers []EventHandler) error {
+	if len(handlers) == 0 {
+		return errors.InternalErrorf("UNABLE_REGISTER_FIELD", "Handlers cant be empty")
+	}
+
+	e.fields[field] = handlers
+	return nil
 }
 
 func (e *EventManager) Run(ctx context.Context, event *Event) (*Result, error) {
-	if handler, ok := e.fields[event.Field]; ok {
-		data, err := handler(ctx, event)
+	if handlers, ok := e.fields[event.Field]; ok {
+		eventContext := NewEventContext(handlers, event)
+		data, err := eventContext.Next()
 		if err != nil {
 			e.errorHandler(ctx, event, err)
 			appErr, ok := errors.FromError(err)
