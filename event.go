@@ -61,7 +61,7 @@ func (e *EventManager) RegisterField(field string, handler EventHandler) {
 	e.fields[field] = []EventHandler{handler}
 }
 
-func (e *EventManager) RegisterFields(field string, handlers []EventHandler) {
+func (e *EventManager) RegisterFields(field string, handlers ...EventHandler) {
 	if len(handlers) == 0 {
 		return
 	}
@@ -69,7 +69,7 @@ func (e *EventManager) RegisterFields(field string, handlers []EventHandler) {
 	e.fields[field] = handlers
 }
 
-func (e *EventManager) RegisterPreFunction(handlers []EventHandler) {
+func (e *EventManager) RegisterPreFunction(handlers ...EventHandler) {
 	if len(handlers) == 0 {
 		return
 	}
@@ -77,7 +77,7 @@ func (e *EventManager) RegisterPreFunction(handlers []EventHandler) {
 	e.beforeHandlers = handlers
 }
 
-func (e *EventManager) RegisterPostFunction(handlers []EventHandler) {
+func (e *EventManager) RegisterPostFunction(handlers ...EventHandler) {
 	if len(handlers) == 0 {
 		return
 	}

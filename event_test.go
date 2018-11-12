@@ -48,7 +48,7 @@ func TestRegisterHandlerAndRun(t *testing.T) {
 	}
 
 	eventManager := NewEventManager()
-	eventManager.RegisterFields("manyfunctions", testHandlers)
+	eventManager.RegisterFields("manyfunctions", testHandlers...)
 
 	result, err := eventManager.Run(context.Background(), eventData)
 	if err != nil {
@@ -75,8 +75,8 @@ func TestRegisterPreHandlerAndRun(t *testing.T) {
 	}
 
 	eventManager := NewEventManager()
-	eventManager.RegisterPreFunction(testPreHandlers)
-	eventManager.RegisterFields("manyfunctions", testHandlers)
+	eventManager.RegisterPreFunction(testPreHandlers...)
+	eventManager.RegisterFields("manyfunctions", testHandlers...)
 
 	result, err := eventManager.Run(context.Background(), eventData)
 	if err != nil {
@@ -103,8 +103,8 @@ func TestRegisterPostHandlerAndRun(t *testing.T) {
 	}
 
 	eventManager := NewEventManager()
-	eventManager.RegisterPostFunction(testPostHandlers)
-	eventManager.RegisterFields("manyfunctions", testHandlers)
+	eventManager.RegisterPostFunction(testPostHandlers...)
+	eventManager.RegisterFields("manyfunctions", testHandlers...)
 
 	result, err := eventManager.Run(context.Background(), eventData)
 	if err != nil {
@@ -128,7 +128,7 @@ func TestRegisterEmptyHandlers(t *testing.T) {
 	}
 
 	eventManager := NewEventManager()
-	eventManager.RegisterFields("emptyHandler", emptyHandlers)
+	eventManager.RegisterFields("emptyHandler", emptyHandlers...)
 	result, err := eventManager.Run(context.Background(), eventData)
 
 	if err.Error() != "FIELD_NOT_FOUND: Not found handler on field emptyHandler" {
