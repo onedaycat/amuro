@@ -38,18 +38,18 @@ type EventHandler func(ctx context.Context, event *Event) (interface{}, error)
 type ErrorHandler func(ctx context.Context, event *Event, err error)
 
 type EventManager struct {
-	fields         map[string][]EventHandler
-	errorHandler   ErrorHandler
-	beforeHandlers []EventHandler
-	afterHandlers  []EventHandler
+	fields       map[string][]EventHandler
+	errorHandler ErrorHandler
+	preHandlers  []EventHandler
+	postHandlers []EventHandler
 }
 
 func NewEventManager() *EventManager {
 	return &EventManager{
-		fields:         make(map[string][]EventHandler),
-		errorHandler:   func(ctx context.Context, event *Event, err error) {},
-		beforeHandlers: []EventHandler{},
-		afterHandlers:  []EventHandler{},
+		fields:       make(map[string][]EventHandler),
+		errorHandler: func(ctx context.Context, event *Event, err error) {},
+		preHandlers:  []EventHandler{},
+		postHandlers: []EventHandler{},
 	}
 }
 
@@ -57,15 +57,7 @@ func (e *EventManager) OnError(handler ErrorHandler) {
 	e.errorHandler = handler
 }
 
-func (e *EventManager) RegisterField(field string, handler EventHandler) {
-	e.fields[field] = []EventHandler{handler}
-}
-
-func (e *EventManager) RegisterFields(field string, handlers ...EventHandler) {
-	if len(handlers) == 0 {
-		return
-	}
-
+func (e *EventManager) RegisterField(field string, handlers ...EventHandler) {
 	e.fields[field] = handlers
 }
 
@@ -74,7 +66,7 @@ func (e *EventManager) RegisterPreFunction(handlers ...EventHandler) {
 		return
 	}
 
-	e.beforeHandlers = handlers
+	e.preHandlers = handlers
 }
 
 func (e *EventManager) RegisterPostFunction(handlers ...EventHandler) {
@@ -82,7 +74,7 @@ func (e *EventManager) RegisterPostFunction(handlers ...EventHandler) {
 		return
 	}
 
-	e.afterHandlers = handlers
+	e.postHandlers = handlers
 }
 
 func (e *EventManager) runHandleError(ctx context.Context, event *Event, err error, data interface{}) (*Result, error) {
@@ -106,7 +98,7 @@ func (e *EventManager) Run(ctx context.Context, event *Event) (*Result, error) {
 	if ok && len(mainHandlers) > 0 {
 		var data interface{}
 		var err error
-		for _, beforeHandler := range e.beforeHandlers {
+		for _, beforeHandler := range e.preHandlers {
 			if _, err = beforeHandler(ctx, event); err != nil {
 				e.runHandleError(ctx, event, err, data)
 			}
@@ -123,7 +115,7 @@ func (e *EventManager) Run(ctx context.Context, event *Event) (*Result, error) {
 			}
 		}
 
-		for _, afterHandler := range e.afterHandlers {
+		for _, afterHandler := range e.postHandlers {
 			if _, err = afterHandler(ctx, event); err != nil {
 				e.runHandleError(ctx, event, err, data)
 			}
