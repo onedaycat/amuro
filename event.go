@@ -98,8 +98,8 @@ func (e *EventManager) Run(ctx context.Context, event *Event) (*Result, error) {
 	if ok && len(mainHandlers) > 0 {
 		var data interface{}
 		var err error
-		for _, beforeHandler := range e.preHandlers {
-			if _, err = beforeHandler(ctx, event); err != nil {
+		for _, preHandler := range e.preHandlers {
+			if _, err = preHandler(ctx, event); err != nil {
 				e.runHandleError(ctx, event, err, data)
 			}
 		}
@@ -115,8 +115,8 @@ func (e *EventManager) Run(ctx context.Context, event *Event) (*Result, error) {
 			}
 		}
 
-		for _, afterHandler := range e.postHandlers {
-			if _, err = afterHandler(ctx, event); err != nil {
+		for _, postHandler := range e.postHandlers {
+			if _, err = postHandler(ctx, event); err != nil {
 				e.runHandleError(ctx, event, err, data)
 			}
 		}
