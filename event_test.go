@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/onedaycat/errors"
 )
 
@@ -39,22 +41,11 @@ func TestMainHandlerAndPassDataToMainPostHandler(t *testing.T) {
 	eventManager.RegisterField("manyfunctions", testMainHandlers.handler, testMainHandlers.preHandlers, testMainHandlers.postHandlers)
 
 	result, err := eventManager.Run(context.Background(), inputData)
-	if err != nil {
-		t.Errorf("Next return err %s", err.Error())
-	}
+	require.Nil(t, err)
+	require.Equal(t, 3, triggerCount)
+	require.Equal(t, string(expectedResultRawJSON), string(result.Data.(json.RawMessage)))
+	require.Equal(t, string(postFuncResult), string(result.Data.(json.RawMessage)))
 
-	if triggerCount != 3 {
-		t.Errorf("Handlers not trigger")
-	}
-
-	resultRawJSON := result.Data.(json.RawMessage)
-	if string(expectedResultRawJSON) != string(resultRawJSON) {
-		t.Errorf("RawJSON not equal expected result")
-	}
-
-	if string(postFuncResult) != string(resultRawJSON) {
-		t.Errorf("RawPostJSON not equal expected result")
-	}
 }
 
 func TestPreMainHandlerTransformInput(t *testing.T) {
@@ -90,22 +81,12 @@ func TestPreMainHandlerTransformInput(t *testing.T) {
 	eventManager.RegisterField("testprefunctions", testMainHandlers.handler, testMainHandlers.preHandlers, testMainHandlers.postHandlers)
 
 	result, err := eventManager.Run(context.Background(), inputData)
-	if err != nil {
-		t.Errorf("Next return err %s", err.Error())
-	}
-
-	if triggerCount != 3 {
-		t.Errorf("Handlers not trigger")
-	}
-
 	resultRawJSON := result.Data.(json.RawMessage)
-	if string(expectedResultRawJSON) != string(resultRawJSON) {
-		t.Errorf("RawJSON not equal expected result")
-	}
 
-	if string(preInputData) != string(resultRawJSON) {
-		t.Errorf("RawPostJSON not equal expected result")
-	}
+	require.Nil(t, err)
+	require.Equal(t, 3, triggerCount)
+	require.Equal(t, string(expectedResultRawJSON), string(resultRawJSON))
+	require.Equal(t, string(preInputData), string(resultRawJSON))
 }
 
 func TestPreMainHandlerError(t *testing.T) {
@@ -140,17 +121,9 @@ func TestPreMainHandlerError(t *testing.T) {
 	eventManager.RegisterField("testPreError", testMainHandlers.handler, testMainHandlers.preHandlers, testMainHandlers.postHandlers)
 
 	result, err := eventManager.Run(context.Background(), inputData)
-	if err != nil {
-		t.Errorf("Error be nil")
-	}
-
-	if triggerCount != 2 {
-		t.Errorf("Handlers should be run only preHandlerห")
-	}
-
-	if result.Error.Error() != "TEST_ERROR: ERROR_AT_PRE_MAIN_HANDLE" {
-		t.Errorf("Raw result error not equal expected")
-	}
+	require.Nil(t, err)
+	require.Equal(t, 2, triggerCount)
+	require.Equal(t, "TEST_ERROR: ERROR_AT_PRE_MAIN_HANDLE", result.Error.Error())
 }
 
 func TestTransformInputDataAtPreHandlersAndPassToPostHandlers(t *testing.T) {
@@ -222,17 +195,9 @@ func TestTransformInputDataAtPreHandlersAndPassToPostHandlers(t *testing.T) {
 	}
 
 	resultRawJSON := result.Data.(json.RawMessage)
-	if string(expectedResultRawJSON) != string(resultRawJSON) {
-		t.Errorf("RawJSON not equal expected result")
-	}
-
-	if string(postInput) != string(expectedResultRawJSON) {
-		t.Errorf("PostInput not equal expected result")
-	}
-
-	if string(postResult.(json.RawMessage)) != string(expectedResultRawJSON) {
-		t.Errorf("PostInput not equal expected result")
-	}
+	require.Equal(t, string(expectedResultRawJSON), string(resultRawJSON))
+	require.Equal(t, string(expectedResultRawJSON), string(postInput))
+	require.Equal(t, string(expectedResultRawJSON), string(postResult.(json.RawMessage)))
 }
 
 func TestRunOnError(t *testing.T) {
@@ -263,15 +228,8 @@ func TestRunOnError(t *testing.T) {
 	eventManager.RegisterField("testError", testMainHandlers.handler, testMainHandlers.preHandlers, testMainHandlers.postHandlers)
 
 	result, err := eventManager.Run(context.Background(), inputData)
-	if err == nil {
-		t.Errorf("Error should not be nil")
-	}
 
-	if result == expectedResult {
-		t.Errorf("Result should be equal expected")
-	}
-
-	if triggerCount != 1 {
-		t.Errorf("Should run only trigger error")
-	}
+	require.Nil(t, err)
+	require.Equal(t, expectedResult, result)
+	require.Equal(t, 1, triggerCount)
 }
