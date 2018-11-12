@@ -137,7 +137,7 @@ func (e *EventManager) Run(ctx context.Context, event *Event) (*Result, error) {
 		e.runPostHandler(ctx, event, data, err, e.postHandlers)
 
 		if err != nil {
-			return e.runHandleError(ctx, event, err, nil)
+			return e.runHandleError(ctx, event, err, data)
 		}
 
 		return &Result{
