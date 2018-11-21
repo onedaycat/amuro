@@ -36,7 +36,7 @@ func (e *Event) ParseArgs(v interface{}) error {
 }
 
 func (e *Event) ParseSource(v interface{}) error {
-	return json.Unmarshal(e.Args, v)
+	return json.Unmarshal(e.Source, v)
 }
 
 type MainHandler struct {
