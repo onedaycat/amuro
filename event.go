@@ -1,4 +1,4 @@
-package appsync
+package amuro
 
 import (
 	"context"
