@@ -285,7 +285,7 @@ func TestRouterNotAllowed(t *testing.T) {
 	// test custom handler
 	w = NewCustomResponse()
 	responseText := "custom method"
-	router.MethodNotAllowed = CustomHandlerFunc(func(w *CustomResponse, r *CustomRequest) {
+	router.MethodNotAllowed = CustomHandler(func(w *CustomResponse, r *CustomRequest) {
 		w.SetStatusCode(http.StatusTeapot)
 		w.Write([]byte(responseText))
 	})
@@ -334,7 +334,7 @@ func TestRouterNotFound(t *testing.T) {
 
 	// Test custom not found handler
 	var notFound bool
-	router.NotFound = CustomHandlerFunc(func(res *CustomResponse, req *CustomRequest) {
+	router.NotFound = CustomHandler(func(res *CustomResponse, req *CustomRequest) {
 		res.SetStatusCode(http.StatusNotFound)
 		notFound = true
 	})

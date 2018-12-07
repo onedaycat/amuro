@@ -15,9 +15,7 @@ const contentTypeHeaderKey = "Content-Type"
 
 type CustomHandler func(*CustomResponse, *CustomRequest)
 
-type CustomHandlerFunc func(*CustomResponse, *CustomRequest)
-
-func (f CustomHandlerFunc) ServeHTTP(res *CustomResponse, req *CustomRequest) {
+func (f CustomHandler) ServeHTTP(res *CustomResponse, req *CustomRequest) {
 	f(res, req)
 }
 
