@@ -143,7 +143,7 @@ func TestRouterOPTIONS(t *testing.T) {
 	r := newRequest("OPTIONS", "*")
 	w := NewCustomResponse()
 	router.ServeHTTP(w, r)
-	if !(w.StatusCode == 200) {
+	if !(w.StatusCode == http.StatusOK) {
 		t.Errorf("OPTIONS handling failed: Code=%d, Header=%v", w.StatusCode, w.Headers)
 	} else if allow := w.Headers.Get("Allow"); allow != "POST, OPTIONS" {
 		t.Error("unexpected Allow header value: " + allow)
@@ -153,7 +153,7 @@ func TestRouterOPTIONS(t *testing.T) {
 	r = newRequest("OPTIONS", "/path")
 	w = NewCustomResponse()
 	router.ServeHTTP(w, r)
-	if !(w.StatusCode == 200) {
+	if !(w.StatusCode == http.StatusOK) {
 		t.Errorf("OPTIONS handling failed: Code=%d, Header=%v", w.StatusCode, w.Headers)
 	} else if allow := w.Headers.Get("Allow"); allow != "POST, OPTIONS" {
 		t.Error("unexpected Allow header value: " + allow)
@@ -174,7 +174,7 @@ func TestRouterOPTIONS(t *testing.T) {
 	r = newRequest("OPTIONS", "*")
 	w = NewCustomResponse()
 	router.ServeHTTP(w, r)
-	if !(w.StatusCode == 200) {
+	if !(w.StatusCode == http.StatusOK) {
 		t.Errorf("OPTIONS handling failed: Code=%d, Header=%v", w.StatusCode, w.Headers)
 	} else if allow := w.Headers.Get("Allow"); allow != "POST, GET, OPTIONS" && allow != "GET, POST, OPTIONS" {
 		t.Error("unexpected Allow header value: " + allow)
@@ -184,7 +184,7 @@ func TestRouterOPTIONS(t *testing.T) {
 	r = newRequest("OPTIONS", "/path")
 	w = NewCustomResponse()
 	router.ServeHTTP(w, r)
-	if !(w.StatusCode == 200) {
+	if !(w.StatusCode == http.StatusOK) {
 		t.Errorf("OPTIONS handling failed: Code=%d, Header=%v", w.StatusCode, w.Headers)
 	} else if allow := w.Headers.Get("Allow"); allow != "POST, GET, OPTIONS" && allow != "GET, POST, OPTIONS" {
 		t.Error("unexpected Allow header value: " + allow)
@@ -193,7 +193,7 @@ func TestRouterOPTIONS(t *testing.T) {
 	// custom handler
 	var custom bool
 	router.OPTIONS("/path", func(w *CustomResponse, r *CustomRequest, _ Params) {
-		w.SetStatusCode(200)
+		w.SetStatusCode(http.StatusOK)
 		custom = true
 	})
 
@@ -202,7 +202,7 @@ func TestRouterOPTIONS(t *testing.T) {
 	r = newRequest("OPTIONS", "*")
 	w = NewCustomResponse()
 	router.ServeHTTP(w, r)
-	if !(w.StatusCode == 200) {
+	if !(w.StatusCode == http.StatusOK) {
 		t.Errorf("OPTIONS handling failed: Code=%d, Header=%v", w.StatusCode, w.Headers)
 	} else if allow := w.Headers.Get("Allow"); allow != "POST, GET, OPTIONS" && allow != "GET, POST, OPTIONS" {
 		t.Error("unexpected Allow header value: " + allow)
@@ -215,7 +215,7 @@ func TestRouterOPTIONS(t *testing.T) {
 	r = newRequest("OPTIONS", "/path")
 	w = NewCustomResponse()
 	router.ServeHTTP(w, r)
-	if !(w.StatusCode == 200) {
+	if !(w.StatusCode == http.StatusOK) {
 		t.Errorf("OPTIONS handling failed: Code=%d, Header=%v", w.StatusCode, w.Headers)
 	}
 	if !custom {
@@ -282,15 +282,15 @@ func TestRouterNotFound(t *testing.T) {
 		code     int
 		location string
 	}{
-		{"/path/", 301, "/path"},   // TSR -/
-		{"/dir", 301, "/dir/"},     // TSR +/
-		{"", 301, "/"},             // TSR +/
-		{"/PATH", 301, "/path"},    // Fixed Case
-		{"/DIR/", 301, "/dir/"},    // Fixed Case
-		{"/PATH/", 301, "/path"},   // Fixed Case -/
-		{"/DIR", 301, "/dir/"},     // Fixed Case +/
-		{"/../path", 301, "/path"}, // CleanPath
-		{"/nope", 404, ""},         // NotFound
+		{"/path/", http.StatusMovedPermanently, "/path"},   // TSR -/
+		{"/dir", http.StatusMovedPermanently, "/dir/"},     // TSR +/
+		{"", http.StatusMovedPermanently, "/"},             // TSR +/
+		{"/PATH", http.StatusMovedPermanently, "/path"},    // Fixed Case
+		{"/DIR/", http.StatusMovedPermanently, "/dir/"},    // Fixed Case
+		{"/PATH/", http.StatusMovedPermanently, "/path"},   // Fixed Case -/
+		{"/DIR", http.StatusMovedPermanently, "/dir/"},     // Fixed Case +/
+		{"/../path", http.StatusMovedPermanently, "/path"}, // CleanPath
+		{"/nope", http.StatusNotFound, ""},                 // NotFound
 	}
 	for _, tr := range testRoutes {
 		r := newRequest("GET", tr.route)
@@ -320,7 +320,7 @@ func TestRouterNotFound(t *testing.T) {
 	r = newRequest("PATCH", "/path/")
 	w = NewCustomResponse()
 	router.ServeHTTP(w, r)
-	if !(w.StatusCode == 308 && fmt.Sprint(w.Headers) == "map[Location:[/path]]") {
+	if !(w.StatusCode == http.StatusPermanentRedirect && fmt.Sprint(w.Headers) == "map[Location:[/path]]") {
 		t.Errorf("Custom NotFound handler failed: Code=%d, Header=%v", w.StatusCode, w.Headers)
 	}
 

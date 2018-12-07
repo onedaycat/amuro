@@ -170,9 +170,9 @@ func (r *Router) ServeHTTP(res *CustomResponse, req *CustomRequest) {
 			handle(res, req, ps)
 			return
 		} else if req.HTTPMethod != "CONNECT" && path != "/" {
-			code := 301
+			code := http.StatusMovedPermanently
 			if req.HTTPMethod != "GET" {
-				code = 308
+				code = http.StatusPermanentRedirect
 			}
 
 			if tsr && r.RedirectTrailingSlash {
