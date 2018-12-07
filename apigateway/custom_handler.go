@@ -14,7 +14,6 @@ const defaultStatusCode = -1
 const contentTypeHeaderKey = "Content-Type"
 
 type CustomHandler func(*CustomResponse, *CustomRequest)
-type CustomHandle func(*CustomResponse, *CustomRequest, Params)
 
 type CustomHandlerFunc func(*CustomResponse, *CustomRequest)
 

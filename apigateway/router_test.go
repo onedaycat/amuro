@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 )
 
-var handlerFunc = func(_ *CustomResponse, _ *CustomRequest, _ Params) {}
+var handlerFunc = func(_ *CustomResponse, _ *CustomRequest) {}
 
 func newRequest(method, path string) *CustomRequest {
 	return &CustomRequest{HTTPMethod: method, Path: path}
@@ -34,7 +34,7 @@ func TestParams(t *testing.T) {
 
 func TestRouterWithAPIGatewayEvent(t *testing.T) {
 	router := New()
-	router.GET("/hello", func(res *CustomResponse, req *CustomRequest, ps Params) {
+	router.GET("/hello", func(res *CustomResponse, req *CustomRequest) {
 		res.SetStatusCode(200)
 		res.Write([]byte(req.QueryStringParameters["test"]))
 	})
@@ -65,11 +65,11 @@ func TestRouter(t *testing.T) {
 	router := New()
 
 	routed := false
-	router.Handle("GET", "/user/:name", func(res *CustomResponse, req *CustomRequest, ps Params) {
+	router.Handle("GET", "/user/:name", func(res *CustomResponse, req *CustomRequest) {
 		routed = true
 		want := Params{Param{"name", "gopher"}}
-		if !reflect.DeepEqual(ps, want) {
-			t.Fatalf("wrong wildcard values: want %v, got %v", want, ps)
+		if "gopher" != want.ByName("name") {
+			t.Fatalf("wrong wildcard values: want ghoper, got %v", want.ByName("name"))
 		}
 	})
 
@@ -94,25 +94,25 @@ func TestRouterAPI(t *testing.T) {
 	var get, head, options, post, put, patch, delete bool
 
 	router := New()
-	router.GET("/GET", func(w *CustomResponse, r *CustomRequest, _ Params) {
+	router.GET("/GET", func(w *CustomResponse, r *CustomRequest) {
 		get = true
 	})
-	router.HEAD("/GET", func(w *CustomResponse, r *CustomRequest, _ Params) {
+	router.HEAD("/GET", func(w *CustomResponse, r *CustomRequest) {
 		head = true
 	})
-	router.OPTIONS("/GET", func(w *CustomResponse, r *CustomRequest, _ Params) {
+	router.OPTIONS("/GET", func(w *CustomResponse, r *CustomRequest) {
 		options = true
 	})
-	router.POST("/POST", func(w *CustomResponse, r *CustomRequest, _ Params) {
+	router.POST("/POST", func(w *CustomResponse, r *CustomRequest) {
 		post = true
 	})
-	router.PUT("/PUT", func(w *CustomResponse, r *CustomRequest, _ Params) {
+	router.PUT("/PUT", func(w *CustomResponse, r *CustomRequest) {
 		put = true
 	})
-	router.PATCH("/PATCH", func(w *CustomResponse, r *CustomRequest, _ Params) {
+	router.PATCH("/PATCH", func(w *CustomResponse, r *CustomRequest) {
 		patch = true
 	})
-	router.DELETE("/DELETE", func(w *CustomResponse, r *CustomRequest, _ Params) {
+	router.DELETE("/DELETE", func(w *CustomResponse, r *CustomRequest) {
 		delete = true
 	})
 
@@ -223,7 +223,7 @@ func TestRouterOPTIONS(t *testing.T) {
 
 	// custom handler
 	var custom bool
-	router.OPTIONS("/path", func(w *CustomResponse, r *CustomRequest, _ Params) {
+	router.OPTIONS("/path", func(w *CustomResponse, r *CustomRequest) {
 		w.SetStatusCode(http.StatusOK)
 		custom = true
 	})
@@ -374,7 +374,7 @@ func TestRouterPanicHandler(t *testing.T) {
 		panicHandled = true
 	}
 
-	router.Handle("PUT", "/user/:name", func(_ *CustomResponse, _ *CustomRequest, _ Params) {
+	router.Handle("PUT", "/user/:name", func(_ *CustomResponse, _ *CustomRequest) {
 		panic("oops!")
 	})
 
@@ -400,13 +400,13 @@ func TestRouterChaining(t *testing.T) {
 	router1.NotFound = router2
 
 	fooHit := false
-	router1.POST("/foo", func(w *CustomResponse, req *CustomRequest, _ Params) {
+	router1.POST("/foo", func(w *CustomResponse, req *CustomRequest) {
 		fooHit = true
 		w.SetStatusCode(http.StatusOK)
 	})
 
 	barHit := false
-	router2.POST("/bar", func(w *CustomResponse, req *CustomRequest, _ Params) {
+	router2.POST("/bar", func(w *CustomResponse, req *CustomRequest) {
 		barHit = true
 		w.SetStatusCode(http.StatusOK)
 	})
@@ -438,7 +438,7 @@ func TestRouterChaining(t *testing.T) {
 
 func TestRouterLookup(t *testing.T) {
 	routed := false
-	wantHandle := func(_ *CustomResponse, _ *CustomRequest, _ Params) {
+	wantHandle := func(_ *CustomResponse, _ *CustomRequest) {
 		routed = true
 	}
 	wantParams := Params{Param{"name", "gopher"}}
@@ -461,7 +461,7 @@ func TestRouterLookup(t *testing.T) {
 	if handle == nil {
 		t.Fatal("Got no handle!")
 	} else {
-		handle(nil, nil, nil)
+		handle(nil, nil)
 		if !routed {
 			t.Fatal("Routing failed!")
 		}

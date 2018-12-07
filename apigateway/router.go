@@ -50,35 +50,35 @@ func New() *Router {
 	}
 }
 
-func (r *Router) GET(path string, handle CustomHandle) {
+func (r *Router) GET(path string, handle CustomHandler) {
 	r.Handle("GET", path, handle)
 }
 
-func (r *Router) HEAD(path string, handle CustomHandle) {
+func (r *Router) HEAD(path string, handle CustomHandler) {
 	r.Handle("HEAD", path, handle)
 }
 
-func (r *Router) OPTIONS(path string, handle CustomHandle) {
+func (r *Router) OPTIONS(path string, handle CustomHandler) {
 	r.Handle("OPTIONS", path, handle)
 }
 
-func (r *Router) POST(path string, handle CustomHandle) {
+func (r *Router) POST(path string, handle CustomHandler) {
 	r.Handle("POST", path, handle)
 }
 
-func (r *Router) PUT(path string, handle CustomHandle) {
+func (r *Router) PUT(path string, handle CustomHandler) {
 	r.Handle("PUT", path, handle)
 }
 
-func (r *Router) PATCH(path string, handle CustomHandle) {
+func (r *Router) PATCH(path string, handle CustomHandler) {
 	r.Handle("PATCH", path, handle)
 }
 
-func (r *Router) DELETE(path string, handle CustomHandle) {
+func (r *Router) DELETE(path string, handle CustomHandler) {
 	r.Handle("DELETE", path, handle)
 }
 
-func (r *Router) Handle(method, path string, handle CustomHandle) {
+func (r *Router) Handle(method, path string, handle CustomHandler) {
 	if path[0] != '/' {
 		panic("path must begin with '/' in path '" + path + "'")
 	}
@@ -96,7 +96,7 @@ func (r *Router) Handle(method, path string, handle CustomHandle) {
 	root.addRoute(path, handle)
 }
 
-func (r *Router) HandlerFunc(method, path string, handler CustomHandle) {
+func (r *Router) HandlerFunc(method, path string, handler CustomHandler) {
 	r.Handle(method, path, handler)
 }
 
@@ -106,7 +106,7 @@ func (r *Router) recv(res *CustomResponse, req *CustomRequest) {
 	}
 }
 
-func (r *Router) Lookup(method, path string) (CustomHandle, Params, bool) {
+func (r *Router) Lookup(method, path string) (CustomHandler, Params, bool) {
 	if root := r.trees[method]; root != nil {
 		return root.getValue(path)
 	}
@@ -165,8 +165,8 @@ func (r *Router) ServeHTTP(res *CustomResponse, req *CustomRequest) {
 
 	path := req.Path
 	if root := r.trees[req.HTTPMethod]; root != nil {
-		if handle, ps, tsr := root.getValue(path); handle != nil {
-			handle(res, req, ps)
+		if handle, _, tsr := root.getValue(path); handle != nil {
+			handle(res, req)
 			return
 		} else if req.HTTPMethod != "CONNECT" && path != "/" {
 			code := http.StatusMovedPermanently

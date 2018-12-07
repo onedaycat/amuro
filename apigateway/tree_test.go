@@ -21,8 +21,8 @@ func printChildren(n *node, prefix string) {
 // Used as a workaround since we can't compare functions or their addresses
 var fakeHandlerValue string
 
-func fakeHandler(val string) CustomHandle {
-	return func(*CustomResponse, *CustomRequest, Params) {
+func fakeHandler(val string) CustomHandler {
+	return func(*CustomResponse, *CustomRequest) {
 		fakeHandlerValue = val
 	}
 }
@@ -45,7 +45,7 @@ func checkRequests(t *testing.T, tree *node, requests testRequests) {
 		} else if request.nilHandler {
 			t.Errorf("handle mismatch for route '%s': Expected nil handle", request.path)
 		} else {
-			handler(nil, nil, nil)
+			handler(nil, nil)
 			if fakeHandlerValue != request.route {
 				t.Errorf("handle mismatch for route '%s': Wrong handle (%s != %s)", request.path, fakeHandlerValue, request.route)
 			}
