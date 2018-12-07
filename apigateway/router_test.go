@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"reflect"
 	"testing"
+
+	"github.com/aws/aws-lambda-go/events"
 )
 
 var handlerFunc = func(_ *CustomResponse, _ *CustomRequest, _ Params) {}
@@ -27,6 +29,35 @@ func TestParams(t *testing.T) {
 	}
 	if val := ps.ByName("noKey"); val != "" {
 		t.Errorf("Expected empty string for not found key; got: %s", val)
+	}
+}
+
+func TestRouterWithAPIGatewayEvent(t *testing.T) {
+	router := New()
+	router.GET("/hello", func(res *CustomResponse, req *CustomRequest, ps Params) {
+		res.SetStatusCode(200)
+		res.Write([]byte(req.QueryStringParameters["test"]))
+	})
+
+	req := events.APIGatewayProxyRequest{
+		Path:       "/hello",
+		HTTPMethod: "GET",
+		QueryStringParameters: map[string]string{
+			"test": "bar",
+		},
+	}
+	res, err := router.MainHandler(req)
+	if err != nil {
+		t.Errorf("Expected empty error; got: %s", err)
+	}
+
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("Expected HTTP Status 200; got: %d", res.StatusCode)
+
+	}
+
+	if res.Body != "bar" {
+		t.Errorf("Expected body bar string; got: %s", res.Body)
 	}
 }
 

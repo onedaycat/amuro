@@ -164,7 +164,6 @@ func (r *Router) ServeHTTP(res *CustomResponse, req *CustomRequest) {
 	}
 
 	path := req.Path
-
 	if root := r.trees[req.HTTPMethod]; root != nil {
 		if handle, ps, tsr := root.getValue(path); handle != nil {
 			handle(res, req, ps)
