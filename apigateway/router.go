@@ -6,6 +6,9 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 )
 
+// Make sure the Router conforms with the http.Handler interface
+var _ Handler = New()
+
 type Handler interface {
 	ServeHTTP(res *CustomResponse, req *CustomRequest)
 }
@@ -33,13 +36,10 @@ type Router struct {
 	RedirectFixedPath      bool
 	HandleMethodNotAllowed bool
 	HandleOPTIONS          bool
-	NotFound               CustomHandle
-	MethodNotAllowed       CustomHandle
+	NotFound               Handler
+	MethodNotAllowed       Handler
 	PanicHandler           func(*CustomResponse, *CustomRequest, interface{})
 }
-
-// Make sure the Router conforms with the http.Handler interface
-var _ Handler = New()
 
 func New() *Router {
 	return &Router{
@@ -210,7 +210,7 @@ func (r *Router) ServeHTTP(res *CustomResponse, req *CustomRequest) {
 			if allow := r.allowed(path, req.HTTPMethod); len(allow) > 0 {
 				res.Headers.Set("Allow", allow)
 				if r.MethodNotAllowed != nil {
-					r.MethodNotAllowed(res, req, nil)
+					r.MethodNotAllowed.ServeHTTP(res, req)
 				} else {
 					HTTPError(res,
 						"Method Not Allowed",
@@ -223,7 +223,7 @@ func (r *Router) ServeHTTP(res *CustomResponse, req *CustomRequest) {
 	}
 
 	if r.NotFound != nil {
-		r.NotFound(res, req, nil)
+		r.NotFound.ServeHTTP(res, req)
 	} else {
 		NotFound(res, req)
 	}

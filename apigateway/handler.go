@@ -13,7 +13,14 @@ import (
 const defaultStatusCode = -1
 const contentTypeHeaderKey = "Content-Type"
 
+type CustomHandler func(*CustomResponse, *CustomRequest)
 type CustomHandle func(*CustomResponse, *CustomRequest, Params)
+
+type CustomHandlerFunc func(*CustomResponse, *CustomRequest)
+
+func (f CustomHandlerFunc) ServeHTTP(res *CustomResponse, req *CustomRequest) {
+	f(res, req)
+}
 
 type CustomRequest struct {
 	Resource              string            `json:"resource"`

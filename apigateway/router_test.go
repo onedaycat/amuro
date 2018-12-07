@@ -254,10 +254,10 @@ func TestRouterNotAllowed(t *testing.T) {
 	// test custom handler
 	w = NewCustomResponse()
 	responseText := "custom method"
-	router.MethodNotAllowed = func(w *CustomResponse, r *CustomRequest, _ Params) {
+	router.MethodNotAllowed = CustomHandlerFunc(func(w *CustomResponse, r *CustomRequest) {
 		w.SetStatusCode(http.StatusTeapot)
 		w.Write([]byte(responseText))
-	}
+	})
 
 	router.ServeHTTP(w, r)
 	if got := w.Body; !(got.String() == responseText) {
@@ -303,10 +303,10 @@ func TestRouterNotFound(t *testing.T) {
 
 	// Test custom not found handler
 	var notFound bool
-	router.NotFound = func(res *CustomResponse, req *CustomRequest, _ Params) {
+	router.NotFound = CustomHandlerFunc(func(res *CustomResponse, req *CustomRequest) {
 		res.SetStatusCode(http.StatusNotFound)
 		notFound = true
-	}
+	})
 
 	r := newRequest("GET", "/nope")
 	w := NewCustomResponse()
@@ -363,47 +363,47 @@ func TestRouterPanicHandler(t *testing.T) {
 	}
 }
 
-// func TestRouterChaining(t *testing.T) {
-// 	router1 := New()
-// 	router2 := New()
-// 	router1.NotFound = router2
+func TestRouterChaining(t *testing.T) {
+	router1 := New()
+	router2 := New()
+	router1.NotFound = router2
 
-// 	fooHit := false
-// 	router1.POST("/foo", func(w *CustomResponse, req *CustomRequest, _ Params) {
-// 		fooHit = true
-// 		w.SetStatusCode(http.StatusOK)
-// 	})
+	fooHit := false
+	router1.POST("/foo", func(w *CustomResponse, req *CustomRequest, _ Params) {
+		fooHit = true
+		w.SetStatusCode(http.StatusOK)
+	})
 
-// 	barHit := false
-// 	router2.POST("/bar", func(w *CustomResponse, req *CustomRequest, _ Params) {
-// 		barHit = true
-// 		w.SetStatusCode(http.StatusOK)
-// 	})
+	barHit := false
+	router2.POST("/bar", func(w *CustomResponse, req *CustomRequest, _ Params) {
+		barHit = true
+		w.SetStatusCode(http.StatusOK)
+	})
 
-// 	r, _ := http.NewRequest("POST", "/foo", nil)
-// 	w := httptest.NewRecorder()
-// 	router1.ServeHTTP(w, r)
-// 	if !(w.Code == http.StatusOK && fooHit) {
-// 		t.Errorf("Regular routing failed with router chaining.")
-// 		t.FailNow()
-// 	}
+	r := newRequest("POST", "/foo")
+	w := NewCustomResponse()
+	router1.ServeHTTP(w, r)
+	if !(w.StatusCode == http.StatusOK && fooHit) {
+		t.Errorf("Regular routing failed with router chaining.")
+		t.FailNow()
+	}
 
-// 	r, _ = http.NewRequest("POST", "/bar", nil)
-// 	w = httptest.NewRecorder()
-// 	router1.ServeHTTP(w, r)
-// 	if !(w.Code == http.StatusOK && barHit) {
-// 		t.Errorf("Chained routing failed with router chaining.")
-// 		t.FailNow()
-// 	}
+	r = newRequest("POST", "/bar")
+	w = NewCustomResponse()
+	router1.ServeHTTP(w, r)
+	if !(w.StatusCode == http.StatusOK && barHit) {
+		t.Errorf("Chained routing failed with router chaining.")
+		t.FailNow()
+	}
 
-// 	r, _ = http.NewRequest("POST", "/qax", nil)
-// 	w = httptest.NewRecorder()
-// 	router1.ServeHTTP(w, r)
-// 	if !(w.Code == http.StatusNotFound) {
-// 		t.Errorf("NotFound behavior failed with router chaining.")
-// 		t.FailNow()
-// 	}
-// }
+	r = newRequest("POST", "/qax")
+	w = NewCustomResponse()
+	router1.ServeHTTP(w, r)
+	if !(w.StatusCode == http.StatusNotFound) {
+		t.Errorf("NotFound behavior failed with router chaining.")
+		t.FailNow()
+	}
+}
 
 func TestRouterLookup(t *testing.T) {
 	routed := false

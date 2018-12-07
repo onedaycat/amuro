@@ -9,13 +9,7 @@ import (
 )
 
 func Redirect(res *CustomResponse, req *CustomRequest, urlEndpoint string, code int) {
-	// parseURL is just url.Parse (url is shadowed for godoc).
 	if u, err := url.Parse(urlEndpoint); err == nil {
-		// If url was relative, make its path absolute by
-		// combining with request path.
-		// The client would probably do this for us,
-		// but doing it ourselves is more reliable.
-		// See RFC 7231, section 7.1.2
 		if u.Scheme == "" && u.Host == "" {
 			oldpath := req.Path
 			if oldpath == "" { // should not happen, but avoid a crash if it does
@@ -45,10 +39,6 @@ func Redirect(res *CustomResponse, req *CustomRequest, urlEndpoint string, code 
 	}
 
 	h := res.Headers
-
-	// RFC 7231 notes that a short HTML body is usually included in
-	// the response because older user agents may not understand 301/307.
-	// Do it only if the request didn't already have a Content-Type header.
 	_, hadCT := h["Content-Type"]
 
 	res.Headers.Set("Location", hexEscapeNonASCII(urlEndpoint))
