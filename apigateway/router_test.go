@@ -8,6 +8,8 @@ import (
 	"testing"
 )
 
+var handlerFunc = func(_ *CustomResponse, _ *CustomRequest, _ Params) {}
+
 func newRequest(method, path string) *CustomRequest {
 	return &CustomRequest{HTTPMethod: method, Path: path}
 }
@@ -32,7 +34,7 @@ func TestRouter(t *testing.T) {
 	router := New()
 
 	routed := false
-	router.Handle("GET", "/user/:name", func(resp *CustomResponse, req *CustomRequest, ps Params) {
+	router.Handle("GET", "/user/:name", func(res *CustomResponse, req *CustomRequest, ps Params) {
 		routed = true
 		want := Params{Param{"name", "gopher"}}
 		if !reflect.DeepEqual(ps, want) {
@@ -40,8 +42,8 @@ func TestRouter(t *testing.T) {
 		}
 	})
 
-	res := &CustomResponse{}
-	req := &CustomRequest{HTTPMethod: "GET", Path: "/user/gopher"}
+	res := NewCustomResponse()
+	req := newRequest("GET", "/user/gopher")
 	router.ServeHTTP(res, req)
 
 	if !routed {
@@ -83,39 +85,39 @@ func TestRouterAPI(t *testing.T) {
 		delete = true
 	})
 
-	cResp := &CustomResponse{}
+	res := NewCustomResponse()
 
-	router.ServeHTTP(cResp, newRequest("GET", "/GET"))
+	router.ServeHTTP(res, newRequest("GET", "/GET"))
 	if !get {
 		t.Error("routing GET failed")
 	}
 
-	router.ServeHTTP(cResp, newRequest("HEAD", "/GET"))
+	router.ServeHTTP(res, newRequest("HEAD", "/GET"))
 	if !head {
 		t.Error("routing HEAD failed")
 	}
 
-	router.ServeHTTP(cResp, newRequest("OPTIONS", "/GET"))
+	router.ServeHTTP(res, newRequest("OPTIONS", "/GET"))
 	if !options {
 		t.Error("routing OPTIONS failed")
 	}
 
-	router.ServeHTTP(cResp, newRequest("POST", "/POST"))
+	router.ServeHTTP(res, newRequest("POST", "/POST"))
 	if !post {
 		t.Error("routing POST failed")
 	}
 
-	router.ServeHTTP(cResp, newRequest("PUT", "/PUT"))
+	router.ServeHTTP(res, newRequest("PUT", "/PUT"))
 	if !put {
 		t.Error("routing PUT failed")
 	}
 
-	router.ServeHTTP(cResp, newRequest("PATCH", "/PATCH"))
+	router.ServeHTTP(res, newRequest("PATCH", "/PATCH"))
 	if !patch {
 		t.Error("routing PATCH failed")
 	}
 
-	router.ServeHTTP(cResp, newRequest("DELETE", "/DELETE"))
+	router.ServeHTTP(res, newRequest("DELETE", "/DELETE"))
 	if !delete {
 		t.Error("routing DELETE failed")
 	}
@@ -132,14 +134,13 @@ func TestRouterRoot(t *testing.T) {
 }
 
 func TestRouterOPTIONS(t *testing.T) {
-	handlerFunc := func(_ *CustomResponse, _ *CustomRequest, _ Params) {}
 
 	router := New()
 	router.POST("/path", handlerFunc)
 
 	// test not allowed
 	// * (server)
-	r := &CustomRequest{HTTPMethod: "OPTIONS", Path: "*"}
+	r := newRequest("OPTIONS", "*")
 	w := NewCustomResponse()
 	router.ServeHTTP(w, r)
 	if !(w.StatusCode == 200) {
@@ -149,7 +150,7 @@ func TestRouterOPTIONS(t *testing.T) {
 	}
 
 	// path
-	r = &CustomRequest{HTTPMethod: "OPTIONS", Path: "/path"}
+	r = newRequest("OPTIONS", "/path")
 	w = NewCustomResponse()
 	router.ServeHTTP(w, r)
 	if !(w.StatusCode == 200) {
@@ -158,7 +159,7 @@ func TestRouterOPTIONS(t *testing.T) {
 		t.Error("unexpected Allow header value: " + allow)
 	}
 
-	r = &CustomRequest{HTTPMethod: "OPTIONS", Path: "/doesnotexist"}
+	r = newRequest("OPTIONS", "/doesnotexist")
 	w = NewCustomResponse()
 	router.ServeHTTP(w, r)
 	if !(w.StatusCode == http.StatusNotFound) {
@@ -170,7 +171,7 @@ func TestRouterOPTIONS(t *testing.T) {
 
 	// test again
 	// * (server)
-	r = &CustomRequest{HTTPMethod: "OPTIONS", Path: "*"}
+	r = newRequest("OPTIONS", "*")
 	w = NewCustomResponse()
 	router.ServeHTTP(w, r)
 	if !(w.StatusCode == 200) {
@@ -180,7 +181,7 @@ func TestRouterOPTIONS(t *testing.T) {
 	}
 
 	// path
-	r = &CustomRequest{HTTPMethod: "OPTIONS", Path: "/path"}
+	r = newRequest("OPTIONS", "/path")
 	w = NewCustomResponse()
 	router.ServeHTTP(w, r)
 	if !(w.StatusCode == 200) {
@@ -198,7 +199,7 @@ func TestRouterOPTIONS(t *testing.T) {
 
 	// test again
 	// * (server)
-	r = &CustomRequest{HTTPMethod: "OPTIONS", Path: "*"}
+	r = newRequest("OPTIONS", "*")
 	w = NewCustomResponse()
 	router.ServeHTTP(w, r)
 	if !(w.StatusCode == 200) {
@@ -211,7 +212,7 @@ func TestRouterOPTIONS(t *testing.T) {
 	}
 
 	// path
-	r = &CustomRequest{HTTPMethod: "OPTIONS", Path: "/path"}
+	r = newRequest("OPTIONS", "/path")
 	w = NewCustomResponse()
 	router.ServeHTTP(w, r)
 	if !(w.StatusCode == 200) {
@@ -223,13 +224,11 @@ func TestRouterOPTIONS(t *testing.T) {
 }
 
 func TestRouterNotAllowed(t *testing.T) {
-	handlerFunc := func(_ *CustomResponse, _ *CustomRequest, _ Params) {}
-
 	router := New()
 	router.POST("/path", handlerFunc)
 
 	// test not allowed
-	r := &CustomRequest{HTTPMethod: "GET", Path: "/path"}
+	r := newRequest("GET", "/path")
 	w := NewCustomResponse()
 	router.ServeHTTP(w, r)
 	if !(w.StatusCode == http.StatusMethodNotAllowed) {
@@ -243,7 +242,7 @@ func TestRouterNotAllowed(t *testing.T) {
 	router.OPTIONS("/path", handlerFunc) // must be ignored
 
 	// test again
-	r = &CustomRequest{HTTPMethod: "GET", Path: "/path"}
+	r = newRequest("GET", "/path")
 	w = NewCustomResponse()
 	router.ServeHTTP(w, r)
 	if !(w.StatusCode == http.StatusMethodNotAllowed) {
@@ -273,8 +272,6 @@ func TestRouterNotAllowed(t *testing.T) {
 }
 
 func TestRouterNotFound(t *testing.T) {
-	handlerFunc := func(_ *CustomResponse, _ *CustomRequest, _ Params) {}
-
 	router := New()
 	router.GET("/path", handlerFunc)
 	router.GET("/dir/", handlerFunc)
@@ -296,44 +293,44 @@ func TestRouterNotFound(t *testing.T) {
 		{"/nope", 404, ""},         // NotFound
 	}
 	for _, tr := range testRoutes {
-		r := &CustomRequest{HTTPMethod: "GET", Path: tr.route}
+		r := newRequest("GET", tr.route)
 		w := NewCustomResponse()
 		router.ServeHTTP(w, r)
-		if !(w.StatusCode == tr.code && (w.StatusCode == 404 || fmt.Sprint(w.Headers.Get("Location")) == tr.location)) {
+		if !(w.StatusCode == tr.code && (w.StatusCode == http.StatusNotFound || fmt.Sprint(w.Headers.Get("Location")) == tr.location)) {
 			t.Errorf("NotFound handling route %s failed: Code=%d, Header=%v", tr.route, w.StatusCode, w.Headers["Location"])
 		}
 	}
 
 	// Test custom not found handler
 	var notFound bool
-	router.NotFound = func(cresp *CustomResponse, creq *CustomRequest, _ Params) {
-		cresp.SetStatusCode(http.StatusNotFound)
+	router.NotFound = func(res *CustomResponse, req *CustomRequest, _ Params) {
+		res.SetStatusCode(http.StatusNotFound)
 		notFound = true
 	}
 
-	r := &CustomRequest{HTTPMethod: "GET", Path: "/nope"}
+	r := newRequest("GET", "/nope")
 	w := NewCustomResponse()
 	router.ServeHTTP(w, r)
-	if !(w.StatusCode == 404 && notFound == true) {
+	if !(w.StatusCode == http.StatusNotFound && notFound == true) {
 		t.Errorf("Custom NotFound handler failed: Code=%d, Header=%v", w.StatusCode, w.Headers)
 	}
 
 	// Test other method than GET (want 307 instead of 301)
 	router.PATCH("/path", handlerFunc)
-	r = &CustomRequest{HTTPMethod: "PATCH", Path: "/path/"}
+	r = newRequest("PATCH", "/path/")
 	w = NewCustomResponse()
 	router.ServeHTTP(w, r)
-	if !(w.StatusCode == 307 && fmt.Sprint(w.Headers) == "map[Location:[/path]]") {
+	if !(w.StatusCode == 308 && fmt.Sprint(w.Headers) == "map[Location:[/path]]") {
 		t.Errorf("Custom NotFound handler failed: Code=%d, Header=%v", w.StatusCode, w.Headers)
 	}
 
 	// Test special case where no node for the prefix "/" exists
 	router = New()
 	router.GET("/a", handlerFunc)
-	r = &CustomRequest{HTTPMethod: "GET", Path: "/"}
+	r = newRequest("GET", "/")
 	w = NewCustomResponse()
 	router.ServeHTTP(w, r)
-	if !(w.StatusCode == 404) {
+	if !(w.StatusCode == http.StatusNotFound) {
 		t.Errorf("NotFound handling route / failed: Code=%d", w.StatusCode)
 	}
 }
@@ -342,7 +339,7 @@ func TestRouterPanicHandler(t *testing.T) {
 	router := New()
 	panicHandled := false
 
-	router.PanicHandler = func(rw *CustomResponse, r *CustomRequest, p interface{}) {
+	router.PanicHandler = func(res *CustomResponse, req *CustomRequest, p interface{}) {
 		panicHandled = true
 	}
 
@@ -350,7 +347,7 @@ func TestRouterPanicHandler(t *testing.T) {
 		panic("oops!")
 	})
 
-	r := &CustomRequest{HTTPMethod: "PUT", Path: "/user/gopher"}
+	r := newRequest("PUT", "/user/gopher")
 	w := NewCustomResponse()
 
 	defer func() {

@@ -64,22 +64,22 @@ func Redirect(res *CustomResponse, req *CustomRequest, urlEndpoint string, code 
 	}
 }
 
-func MethodNotAllowed(resp *CustomResponse, req *CustomRequest, url string, code int) error {
-	Error(resp, "Method Not Allowed", 405)
+func MethodNotAllowed(res *CustomResponse, req *CustomRequest, url string, code int) error {
+	Error(res, "Method Not Allowed", 405)
 	return nil
 }
 
-func Error(w *CustomResponse, errorMessage string, code int) {
-	w.Headers.Set("Content-Type", "text/plain; charset=utf-8")
-	w.Headers.Set("X-Content-Type-Options", "nosniff")
-	w.SetStatusCode(code)
-	w.Write([]byte(errorMessage))
+func Error(res *CustomResponse, errorMessage string, code int) {
+	res.Headers.Set("Content-Type", "text/plain; charset=utf-8")
+	res.Headers.Set("X-Content-Type-Options", "nosniff")
+	res.SetStatusCode(code)
+	res.Write([]byte(errorMessage))
 }
 
-func NotFound(resp *CustomResponse, req *CustomRequest) {
-	Error(resp, "404 page not found", http.StatusNotFound)
+func NotFound(res *CustomResponse, req *CustomRequest) {
+	Error(res, "404 page not found", http.StatusNotFound)
 }
 
-func HTTPError(resp *CustomResponse, errorMessage string, code int) {
-	Error(resp, errorMessage, code)
+func HTTPError(res *CustomResponse, errorMessage string, code int) {
+	Error(res, errorMessage, code)
 }

@@ -1,11 +1,13 @@
 package apigateway
 
 import (
+	"net/http"
+
 	"github.com/aws/aws-lambda-go/events"
 )
 
 type Handler interface {
-	ServeHTTP(w *CustomResponse, req *CustomRequest)
+	ServeHTTP(res *CustomResponse, req *CustomRequest)
 }
 
 type Param struct {
@@ -98,9 +100,9 @@ func (r *Router) HandlerFunc(method, path string, handler CustomHandle) {
 	r.Handle(method, path, handler)
 }
 
-func (r *Router) recv(w *CustomResponse, req *CustomRequest) {
+func (r *Router) recv(res *CustomResponse, req *CustomRequest) {
 	if rcv := recover(); rcv != nil {
-		r.PanicHandler(w, req, rcv)
+		r.PanicHandler(res, req, rcv)
 	}
 }
 
@@ -156,21 +158,21 @@ func (r *Router) MainHandler(request events.APIGatewayProxyRequest) (events.APIG
 	return res.ToAPIGatewayResponse()
 }
 
-func (r *Router) ServeHTTP(w *CustomResponse, req *CustomRequest) {
+func (r *Router) ServeHTTP(res *CustomResponse, req *CustomRequest) {
 	if r.PanicHandler != nil {
-		defer r.recv(w, req)
+		defer r.recv(res, req)
 	}
 
 	path := req.Path
 
 	if root := r.trees[req.HTTPMethod]; root != nil {
 		if handle, ps, tsr := root.getValue(path); handle != nil {
-			handle(w, req, ps)
+			handle(res, req, ps)
 			return
 		} else if req.HTTPMethod != "CONNECT" && path != "/" {
 			code := 301
 			if req.HTTPMethod != "GET" {
-				code = 307
+				code = 308
 			}
 
 			if tsr && r.RedirectTrailingSlash {
@@ -179,7 +181,7 @@ func (r *Router) ServeHTTP(w *CustomResponse, req *CustomRequest) {
 				} else {
 					req.Path = path + "/"
 				}
-				Redirect(w, req, req.URLString(), code)
+				Redirect(res, req, req.URLString(), code)
 				return
 			}
 
@@ -190,7 +192,7 @@ func (r *Router) ServeHTTP(w *CustomResponse, req *CustomRequest) {
 				)
 				if found {
 					req.Path = string(fixedPath)
-					Redirect(w, req, req.URLString(), code)
+					Redirect(res, req, req.URLString(), code)
 					return
 				}
 			}
@@ -199,20 +201,20 @@ func (r *Router) ServeHTTP(w *CustomResponse, req *CustomRequest) {
 
 	if req.HTTPMethod == "OPTIONS" && r.HandleOPTIONS {
 		if allow := r.allowed(path, req.HTTPMethod); len(allow) > 0 {
-			w.Headers.Set("Allow", allow)
-			w.SetStatusCode(200)
+			res.Headers.Set("Allow", allow)
+			res.SetStatusCode(http.StatusOK)
 			return
 		}
 	} else {
 		if r.HandleMethodNotAllowed {
 			if allow := r.allowed(path, req.HTTPMethod); len(allow) > 0 {
-				w.Headers.Set("Allow", allow)
+				res.Headers.Set("Allow", allow)
 				if r.MethodNotAllowed != nil {
-					r.MethodNotAllowed(w, req, nil)
+					r.MethodNotAllowed(res, req, nil)
 				} else {
-					HTTPError(w,
+					HTTPError(res,
 						"Method Not Allowed",
-						405,
+						http.StatusMethodNotAllowed,
 					)
 				}
 				return
@@ -221,8 +223,8 @@ func (r *Router) ServeHTTP(w *CustomResponse, req *CustomRequest) {
 	}
 
 	if r.NotFound != nil {
-		r.NotFound(w, req, nil)
+		r.NotFound(res, req, nil)
 	} else {
-		NotFound(w, req)
+		NotFound(res, req)
 	}
 }
