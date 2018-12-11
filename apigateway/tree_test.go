@@ -25,9 +25,9 @@ func printChildren(n *node, prefix string) {
 var fakeHandlerValue string
 
 func fakeHandler(val string) EventHandler {
-	return func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
+	return func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
 		fakeHandlerValue = val
-		return nil, nil
+		return nil
 	}
 }
 

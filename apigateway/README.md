@@ -15,7 +15,7 @@ import (
 )
 
 
-func HelloFunc(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
+func HelloFunc(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
 		response := NewResponse()
 		response.StatusCode = http.StatusOK
 		response.Body = request.QueryStringParameters["name"]
@@ -35,7 +35,7 @@ func main() {
 amuro has support custom handler (NotFound, MethodNotAllowed, PanicHandler, ErrorHandler)
 
 ```
-func CustomNotFound(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
+func CustomNotFound(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
   response := NewResponse()
   response.StatusCode = http.StatusNotFound
   response.Body = "custom_notfound"

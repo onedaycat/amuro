@@ -11,7 +11,7 @@ import (
 var _ Handler = New()
 
 type Handler interface {
-	ServeEvent(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error)
+	ServeEvent(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse
 }
 
 type Param struct {
@@ -40,7 +40,7 @@ type Router struct {
 	NotFound               Handler
 	MethodNotAllowed       Handler
 	PanicHandler           func(context.Context, *events.APIGatewayProxyRequest, interface{})
-	ErrorHandler           func(context.Context, *events.APIGatewayProxyRequest, *events.APIGatewayProxyResponse, error) (events.APIGatewayProxyResponse, error)
+	ErrorHandler           func(context.Context, *events.APIGatewayProxyRequest, *events.APIGatewayProxyResponse) events.APIGatewayProxyResponse
 }
 
 func New() *Router {
@@ -98,13 +98,13 @@ func (r *Router) Handle(method, path string, handler EventHandler) {
 	root.addRoute(path, handler)
 }
 
-func (r *Router) MainHandler(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	response, err := r.ServeEvent(ctx, &request)
-	if (response.StatusCode >= 400 || err != nil) && r.ErrorHandler != nil {
-		return r.ErrorHandler(ctx, &request, response, err)
+func (r *Router) MainHandler(ctx context.Context, request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
+	response := r.ServeEvent(ctx, &request)
+	if response.StatusCode >= 400 && r.ErrorHandler != nil {
+		return r.ErrorHandler(ctx, &request, response)
 	}
 
-	return *response, nil
+	return *response
 }
 
 func (r *Router) recv(ctx context.Context, request *events.APIGatewayProxyRequest) {
@@ -155,7 +155,7 @@ func (r *Router) allowed(path, reqMethod string) (allow string) {
 	return
 }
 
-func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
+func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
 	if r.PanicHandler != nil {
 		defer r.recv(ctx, request)
 	}
@@ -176,7 +176,7 @@ func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxy
 				} else {
 					request.Path = path + "/"
 				}
-				return Redirect(ctx, request, request.Path, code), nil
+				return Redirect(ctx, request, request.Path, code)
 			}
 
 			if r.RedirectFixedPath {
@@ -186,7 +186,7 @@ func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxy
 				)
 				if found {
 					request.Path = string(fixedPath)
-					return Redirect(ctx, request, request.Path, code), nil
+					return Redirect(ctx, request, request.Path, code)
 
 				}
 			}
@@ -198,21 +198,21 @@ func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxy
 		if allow := r.allowed(path, request.HTTPMethod); len(allow) > 0 {
 			response.Headers["Allow"] = allow
 			response.StatusCode = http.StatusOK
-			return response, nil
+			return response
 		}
 	} else {
 		if r.HandleMethodNotAllowed {
 			if allow := r.allowed(path, request.HTTPMethod); len(allow) > 0 {
 				if r.MethodNotAllowed != nil {
-					response, err := r.MethodNotAllowed.ServeEvent(ctx, request)
+					response := r.MethodNotAllowed.ServeEvent(ctx, request)
 					response.Headers["Allow"] = allow
-					return response, err
+					return response
 				}
 
 				response := HTTPError(ctx, "Method Not Allowed", http.StatusMethodNotAllowed)
 				response.Headers["Allow"] = allow
 
-				return response, nil
+				return response
 			}
 		}
 	}
@@ -221,5 +221,5 @@ func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxy
 		return r.NotFound.ServeEvent(ctx, request)
 	}
 
-	return NotFound(ctx), nil
+	return NotFound(ctx)
 }

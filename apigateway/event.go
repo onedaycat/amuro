@@ -6,9 +6,9 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 )
 
-type EventHandler func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error)
+type EventHandler func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse
 
-func (f EventHandler) ServeEvent(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
+func (f EventHandler) ServeEvent(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
 	return f(ctx, request)
 }
 
