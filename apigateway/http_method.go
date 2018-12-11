@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 )
 
-func Redirect(ctx context.Context, req *events.APIGatewayProxyRequest, urlEndpoint string, code int) (*events.APIGatewayProxyResponse, error) {
+func Redirect(ctx context.Context, req *events.APIGatewayProxyRequest, urlEndpoint string, code int) *events.APIGatewayProxyResponse {
 	res := NewResponse()
 	if u, err := url.Parse(urlEndpoint); err == nil {
 		if u.Scheme == "" && u.Host == "" {
@@ -54,7 +54,7 @@ func Redirect(ctx context.Context, req *events.APIGatewayProxyRequest, urlEndpoi
 		res.Body = "<a href=\"" + htmlEscape(urlEndpoint) + "\">" + string(code) + "</a>.\n"
 	}
 
-	return res, nil
+	return res
 }
 
 func MethodNotAllowed(ctx context.Context, url string, code int) *events.APIGatewayProxyResponse {

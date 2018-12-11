@@ -176,7 +176,7 @@ func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxy
 				} else {
 					request.Path = path + "/"
 				}
-				return Redirect(ctx, request, request.Path, code)
+				return Redirect(ctx, request, request.Path, code), nil
 			}
 
 			if r.RedirectFixedPath {
@@ -186,7 +186,7 @@ func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxy
 				)
 				if found {
 					request.Path = string(fixedPath)
-					return Redirect(ctx, request, request.Path, code)
+					return Redirect(ctx, request, request.Path, code), nil
 
 				}
 			}
