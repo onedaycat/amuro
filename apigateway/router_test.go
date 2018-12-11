@@ -43,8 +43,7 @@ func TestRouterWithAPIGatewayEvent(t *testing.T) {
 		return response, nil
 	})
 
-	res := NewResponse()
-	req := &events.APIGatewayProxyRequest{
+	req := events.APIGatewayProxyRequest{
 		Path:       "/hello",
 		HTTPMethod: "GET",
 		QueryStringParameters: map[string]string{
@@ -52,7 +51,7 @@ func TestRouterWithAPIGatewayEvent(t *testing.T) {
 		},
 	}
 
-	res, err := router.ServeEvent(context.Background(), req)
+	res, err := router.MainHandler(context.Background(), req)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, res.StatusCode)
 	assert.Equal(t, "bar", res.Body)
