@@ -19,7 +19,7 @@ func HelloFunc(ctx context.Context, request *events.APIGatewayProxyRequest) *eve
 		response := NewResponse()
 		response.StatusCode = http.StatusOK
 		response.Body = request.QueryStringParameters["name"]
-		return response, nil
+		return response
 	}
 
 func main() {
@@ -39,7 +39,7 @@ func CustomNotFound(ctx context.Context, request *events.APIGatewayProxyRequest)
   response := NewResponse()
   response.StatusCode = http.StatusNotFound
   response.Body = "custom_notfound"
-  return response, nil
+  return response
 }
 
 func main() {

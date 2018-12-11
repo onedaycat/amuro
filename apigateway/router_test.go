@@ -78,9 +78,9 @@ func TestErrorHandler(t *testing.T) {
 	assert.Equal(t, "bar", res.Body)
 
 	routed := false
-	router.ErrorHandler = func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) events.APIGatewayProxyResponse {
+	router.ErrorHandler = func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse {
 		routed = true
-		return *response
+		return response
 	}
 	res = router.MainHandler(context.Background(), req)
 	assert.True(t, routed)
@@ -325,7 +325,7 @@ func TestRouterNotFound(t *testing.T) {
 
 	// Test custom not found handler
 	var notFound bool
-	router.NotFound = EventHandler(func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+	router.PathNotFound = EventHandler(func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
 		notFound = true
 
 		response := NewResponse()
@@ -389,7 +389,7 @@ func TestRouterPanicHandler(t *testing.T) {
 func TestRouterChaining(t *testing.T) {
 	router1 := New()
 	router2 := New()
-	router1.NotFound = router2
+	router1.PathNotFound = router2
 
 	fooHit := false
 	router1.POST("/foo", func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {

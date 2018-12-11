@@ -14,6 +14,9 @@ type Handler interface {
 	ServeEvent(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse
 }
 
+type PanicHandlerFunc func(context.Context, *events.APIGatewayProxyRequest, interface{})
+type ErrorHandlerFunc func(context.Context, *events.APIGatewayProxyRequest, *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse
+
 type Param struct {
 	Key   string
 	Value string
@@ -37,10 +40,10 @@ type Router struct {
 	RedirectFixedPath      bool
 	HandleMethodNotAllowed bool
 	HandleOPTIONS          bool
-	NotFound               Handler
+	PathNotFound           Handler
 	MethodNotAllowed       Handler
-	PanicHandler           func(context.Context, *events.APIGatewayProxyRequest, interface{})
-	ErrorHandler           func(context.Context, *events.APIGatewayProxyRequest, *events.APIGatewayProxyResponse) events.APIGatewayProxyResponse
+	PanicHandler           PanicHandlerFunc
+	ErrorHandler           ErrorHandlerFunc
 }
 
 func New() *Router {
@@ -101,7 +104,7 @@ func (r *Router) Handle(method, path string, handler EventHandler) {
 func (r *Router) MainHandler(ctx context.Context, request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
 	response := r.ServeEvent(ctx, &request)
 	if response.StatusCode >= 400 && r.ErrorHandler != nil {
-		return r.ErrorHandler(ctx, &request, response)
+		response = r.ErrorHandler(ctx, &request, response)
 	}
 
 	return *response
@@ -217,8 +220,8 @@ func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxy
 		}
 	}
 
-	if r.NotFound != nil {
-		return r.NotFound.ServeEvent(ctx, request)
+	if r.PathNotFound != nil {
+		return r.PathNotFound.ServeEvent(ctx, request)
 	}
 
 	return NotFound(ctx)
