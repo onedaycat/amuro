@@ -40,6 +40,7 @@ type Router struct {
 	NotFound               Handler
 	MethodNotAllowed       Handler
 	PanicHandler           func(context.Context, *events.APIGatewayProxyRequest, interface{})
+	ErrorHandler           func(context.Context, *events.APIGatewayProxyRequest, *events.APIGatewayProxyResponse, error) (events.APIGatewayProxyResponse, error)
 }
 
 func New() *Router {
@@ -51,35 +52,35 @@ func New() *Router {
 	}
 }
 
-func (r *Router) GET(path string, handle EventHandler) {
-	r.Handle("GET", path, handle)
+func (r *Router) GET(path string, handler EventHandler) {
+	r.Handle("GET", path, handler)
 }
 
-func (r *Router) HEAD(path string, handle EventHandler) {
-	r.Handle("HEAD", path, handle)
+func (r *Router) HEAD(path string, handler EventHandler) {
+	r.Handle("HEAD", path, handler)
 }
 
-func (r *Router) OPTIONS(path string, handle EventHandler) {
-	r.Handle("OPTIONS", path, handle)
+func (r *Router) OPTIONS(path string, handler EventHandler) {
+	r.Handle("OPTIONS", path, handler)
 }
 
-func (r *Router) POST(path string, handle EventHandler) {
-	r.Handle("POST", path, handle)
+func (r *Router) POST(path string, handler EventHandler) {
+	r.Handle("POST", path, handler)
 }
 
-func (r *Router) PUT(path string, handle EventHandler) {
-	r.Handle("PUT", path, handle)
+func (r *Router) PUT(path string, handler EventHandler) {
+	r.Handle("PUT", path, handler)
 }
 
-func (r *Router) PATCH(path string, handle EventHandler) {
-	r.Handle("PATCH", path, handle)
+func (r *Router) PATCH(path string, handler EventHandler) {
+	r.Handle("PATCH", path, handler)
 }
 
-func (r *Router) DELETE(path string, handle EventHandler) {
-	r.Handle("DELETE", path, handle)
+func (r *Router) DELETE(path string, handler EventHandler) {
+	r.Handle("DELETE", path, handler)
 }
 
-func (r *Router) Handle(method, path string, handle EventHandler) {
+func (r *Router) Handle(method, path string, handler EventHandler) {
 	if path[0] != '/' {
 		panic("path must begin with '/' in path '" + path + "'")
 	}
@@ -94,12 +95,16 @@ func (r *Router) Handle(method, path string, handle EventHandler) {
 		r.trees[method] = root
 	}
 
-	root.addRoute(path, handle)
+	root.addRoute(path, handler)
 }
 
 func (r *Router) MainHandler(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	response, err := r.ServeEvent(ctx, &request)
-	return *response, err
+	if (response.StatusCode >= 400 || err != nil) && r.ErrorHandler != nil {
+		return r.ErrorHandler(ctx, &request, response, err)
+	}
+
+	return *response, nil
 }
 
 func (r *Router) recv(ctx context.Context, request *events.APIGatewayProxyRequest) {
@@ -176,7 +181,7 @@ func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxy
 
 			if r.RedirectFixedPath {
 				fixedPath, found := root.findCaseInsensitivePath(
-					CleanPath(path),
+					cleanPath(path),
 					r.RedirectTrailingSlash,
 				)
 				if found {
@@ -202,19 +207,19 @@ func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxy
 					response, err := r.MethodNotAllowed.ServeEvent(ctx, request)
 					response.Headers["Allow"] = allow
 					return response, err
-				} else {
-					response, err := HTTPError(ctx, "Method Not Allowed", http.StatusMethodNotAllowed)
-					response.Headers["Allow"] = allow
-
-					return response, err
 				}
+
+				response, err := HTTPError(ctx, "Method Not Allowed", http.StatusMethodNotAllowed)
+				response.Headers["Allow"] = allow
+
+				return response, err
 			}
 		}
 	}
 
 	if r.NotFound != nil {
 		return r.NotFound.ServeEvent(ctx, request)
-	} else {
-		return NotFound(ctx)
 	}
+
+	return NotFound(ctx)
 }

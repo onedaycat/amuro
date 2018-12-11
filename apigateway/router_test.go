@@ -2,6 +2,7 @@ package apigateway
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"reflect"
@@ -34,7 +35,7 @@ func TestParams(t *testing.T) {
 	assert.Empty(t, ps.ByName("noKey"))
 }
 
-func TestRouterWithAPIGatewayEvent(t *testing.T) {
+func TestMainHandlerWithAPIGatewayEvent(t *testing.T) {
 	router := New()
 	router.GET("/hello", func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 		response := NewResponse()
@@ -55,6 +56,41 @@ func TestRouterWithAPIGatewayEvent(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, res.StatusCode)
 	assert.Equal(t, "bar", res.Body)
+}
+
+func TestErrorHandler(t *testing.T) {
+	router := New()
+	router.GET("/hello", func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
+		response := NewResponse()
+		response.StatusCode = http.StatusNotFound
+		response.Body = request.QueryStringParameters["test"]
+		return response, errors.New("test_error")
+	})
+
+	req := events.APIGatewayProxyRequest{
+		Path:       "/hello",
+		HTTPMethod: "GET",
+		QueryStringParameters: map[string]string{
+			"test": "bar",
+		},
+	}
+
+	res, err := router.MainHandler(context.Background(), req)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusNotFound, res.StatusCode)
+	assert.Equal(t, "bar", res.Body)
+
+	routed := false
+	router.ErrorHandler = func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse, err error) (events.APIGatewayProxyResponse, error) {
+		routed = true
+		return *response, err
+	}
+	res, err = router.MainHandler(context.Background(), req)
+	assert.True(t, routed)
+	assert.Error(t, err)
+	assert.Equal(t, http.StatusNotFound, res.StatusCode)
+	assert.Equal(t, "bar", res.Body)
+
 }
 
 func TestRouter(t *testing.T) {

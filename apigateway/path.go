@@ -13,7 +13,7 @@ package apigateway
 //	   that is, replace "/.." by "/" at the beginning of a path.
 //
 // If the result of this process is an empty string, "/" is returned
-func CleanPath(p string) string {
+func cleanPath(p string) string {
 	// Turn empty string into "/"
 	if p == "" {
 		return "/"
