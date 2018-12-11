@@ -8,9 +8,9 @@ import (
 )
 
 // Make sure the Router conforms with the http.Handler interface
-var _ Handler = New()
+var _ Handle = New()
 
-type Handler interface {
+type Handle interface {
 	ServeEvent(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse
 }
 
@@ -40,8 +40,8 @@ type Router struct {
 	RedirectFixedPath      bool
 	HandleMethodNotAllowed bool
 	HandleOPTIONS          bool
-	PathNotFound           Handler
-	MethodNotAllowed       Handler
+	PathNotFound           Handle
+	MethodNotAllowed       Handle
 	PanicHandler           PanicHandlerFunc
 	ErrorHandler           ErrorHandlerFunc
 }

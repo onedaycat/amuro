@@ -431,6 +431,51 @@ func TestRouterChaining(t *testing.T) {
 	}
 }
 
+func TestMiddlewareRouter(t *testing.T) {
+	router1 := New()
+	router2 := New()
+	router1.PathNotFound = router2
+
+	fooHit := false
+	router1.POST("/foo", func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+		fooHit = true
+
+		response := NewResponse()
+		response.StatusCode = http.StatusOK
+		return response
+	})
+
+	barHit := false
+	router2.POST("/bar", func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+		barHit = true
+
+		response := NewResponse()
+		response.StatusCode = http.StatusOK
+		return response
+	})
+
+	req := newRequest("POST", "/foo")
+	res := router1.ServeEvent(context.Background(), req)
+	if !(res.StatusCode == http.StatusOK && fooHit) {
+		t.Errorf("Regular routing failed with router chaining.")
+		t.FailNow()
+	}
+
+	req = newRequest("POST", "/bar")
+	res = router1.ServeEvent(context.Background(), req)
+	if !(res.StatusCode == http.StatusOK && barHit) {
+		t.Errorf("Chained routing failed with router chaining.")
+		t.FailNow()
+	}
+
+	req = newRequest("POST", "/qax")
+	res = router1.ServeEvent(context.Background(), req)
+	if !(res.StatusCode == http.StatusNotFound) {
+		t.Errorf("NotFound behavior failed with router chaining.")
+		t.FailNow()
+	}
+}
+
 func TestRouterLookup(t *testing.T) {
 	routed := false
 	wantHandle := func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
