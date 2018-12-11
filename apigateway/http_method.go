@@ -1,14 +1,17 @@
 package apigateway
 
 import (
-	"fmt"
+	"context"
 	"net/http"
 	"net/url"
 	"path"
 	"strings"
+
+	"github.com/aws/aws-lambda-go/events"
 )
 
-func Redirect(res *CustomResponse, req *CustomRequest, urlEndpoint string, code int) {
+func Redirect(ctx context.Context, req *events.APIGatewayProxyRequest, urlEndpoint string, code int) (*events.APIGatewayProxyResponse, error) {
+	res := NewResponse()
 	if u, err := url.Parse(urlEndpoint); err == nil {
 		if u.Scheme == "" && u.Host == "" {
 			oldpath := req.Path
@@ -24,7 +27,7 @@ func Redirect(res *CustomResponse, req *CustomRequest, urlEndpoint string, code 
 			}
 
 			var query string
-			if i := strings.Index(urlEndpoint, "?"); i != defaultStatusCode {
+			if i := strings.Index(urlEndpoint, "?"); i != -1 {
 				urlEndpoint, query = urlEndpoint[:i], urlEndpoint[i:]
 			}
 
@@ -38,38 +41,40 @@ func Redirect(res *CustomResponse, req *CustomRequest, urlEndpoint string, code 
 		}
 	}
 
-	h := res.Headers
-	_, hadCT := h["Content-Type"]
+	_, hadCT := res.Headers["Content-Type"]
 
-	res.Headers.Set("Location", hexEscapeNonASCII(urlEndpoint))
+	res.Headers["Location"] = hexEscapeNonASCII(urlEndpoint)
 	if !hadCT && (req.HTTPMethod == "GET" || req.HTTPMethod == "HEAD") {
-		res.Headers.Set("Content-Type", "text/html; charset=utf-8")
+		res.Headers["Content-Type"] = "text/html; charset=utf-8"
 	}
-	res.SetStatusCode(code)
+	res.StatusCode = code
 
 	// Shouldn't send the body for POST or HEAD; that leaves GET.
 	if !hadCT && req.HTTPMethod == "GET" {
-		body := "<a href=\"" + htmlEscape(urlEndpoint) + "\">" + string(code) + "</a>.\n"
-		fmt.Fprintln(res, body)
+		res.Body = "<a href=\"" + htmlEscape(urlEndpoint) + "\">" + string(code) + "</a>.\n"
 	}
+
+	return res, nil
 }
 
-func MethodNotAllowed(res *CustomResponse, req *CustomRequest, url string, code int) error {
-	Error(res, "Method Not Allowed", 405)
-	return nil
+func MethodNotAllowed(ctx context.Context, url string, code int) (*events.APIGatewayProxyResponse, error) {
+	return SetError(ctx, "Method Not Allowed", 405)
 }
 
-func Error(res *CustomResponse, errorMessage string, code int) {
-	res.Headers.Set("Content-Type", "text/plain; charset=utf-8")
-	res.Headers.Set("X-Content-Type-Options", "nosniff")
-	res.SetStatusCode(code)
-	res.Write([]byte(errorMessage))
+func SetError(ctx context.Context, errorMessage string, code int) (*events.APIGatewayProxyResponse, error) {
+	res := NewResponse()
+	res.StatusCode = code
+	res.Headers["Content-Type"] = "text/plain; charset=utf-8"
+	res.Headers["X-Content-Type-Options"] = "nosniff"
+	res.Body = errorMessage
+
+	return res, nil
 }
 
-func NotFound(res *CustomResponse, req *CustomRequest) {
-	Error(res, "404 page not found", http.StatusNotFound)
+func SetNotFound(ctx context.Context) (*events.APIGatewayProxyResponse, error) {
+	return SetError(ctx, "404 page not found", http.StatusNotFound)
 }
 
-func HTTPError(res *CustomResponse, errorMessage string, code int) {
-	Error(res, errorMessage, code)
+func SetHTTPError(ctx context.Context, errorMessage string, code int) (*events.APIGatewayProxyResponse, error) {
+	return SetError(ctx, errorMessage, code)
 }

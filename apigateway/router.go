@@ -1,6 +1,7 @@
 package apigateway
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -10,7 +11,7 @@ import (
 var _ Handler = New()
 
 type Handler interface {
-	ServeHTTP(res *CustomResponse, req *CustomRequest)
+	ServeEvent(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error)
 }
 
 type Param struct {
@@ -38,7 +39,7 @@ type Router struct {
 	HandleOPTIONS          bool
 	NotFound               Handler
 	MethodNotAllowed       Handler
-	PanicHandler           func(*CustomResponse, *CustomRequest, interface{})
+	PanicHandler           func(context.Context, *events.APIGatewayProxyRequest, interface{})
 }
 
 func New() *Router {
@@ -50,35 +51,35 @@ func New() *Router {
 	}
 }
 
-func (r *Router) GET(path string, handle CustomHandler) {
+func (r *Router) GET(path string, handle EventHandler) {
 	r.Handle("GET", path, handle)
 }
 
-func (r *Router) HEAD(path string, handle CustomHandler) {
+func (r *Router) HEAD(path string, handle EventHandler) {
 	r.Handle("HEAD", path, handle)
 }
 
-func (r *Router) OPTIONS(path string, handle CustomHandler) {
+func (r *Router) OPTIONS(path string, handle EventHandler) {
 	r.Handle("OPTIONS", path, handle)
 }
 
-func (r *Router) POST(path string, handle CustomHandler) {
+func (r *Router) POST(path string, handle EventHandler) {
 	r.Handle("POST", path, handle)
 }
 
-func (r *Router) PUT(path string, handle CustomHandler) {
+func (r *Router) PUT(path string, handle EventHandler) {
 	r.Handle("PUT", path, handle)
 }
 
-func (r *Router) PATCH(path string, handle CustomHandler) {
+func (r *Router) PATCH(path string, handle EventHandler) {
 	r.Handle("PATCH", path, handle)
 }
 
-func (r *Router) DELETE(path string, handle CustomHandler) {
+func (r *Router) DELETE(path string, handle EventHandler) {
 	r.Handle("DELETE", path, handle)
 }
 
-func (r *Router) Handle(method, path string, handle CustomHandler) {
+func (r *Router) Handle(method, path string, handle EventHandler) {
 	if path[0] != '/' {
 		panic("path must begin with '/' in path '" + path + "'")
 	}
@@ -96,17 +97,22 @@ func (r *Router) Handle(method, path string, handle CustomHandler) {
 	root.addRoute(path, handle)
 }
 
-func (r *Router) HandlerFunc(method, path string, handler CustomHandler) {
+func (r *Router) MainHandler(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	response, err := r.ServeEvent(ctx, &request)
+	return *response, err
+}
+
+func (r *Router) HandlerFunc(method, path string, handler EventHandler) {
 	r.Handle(method, path, handler)
 }
 
-func (r *Router) recv(res *CustomResponse, req *CustomRequest) {
+func (r *Router) recv(ctx context.Context, request *events.APIGatewayProxyRequest) {
 	if rcv := recover(); rcv != nil {
-		r.PanicHandler(res, req, rcv)
+		r.PanicHandler(ctx, request, rcv)
 	}
 }
 
-func (r *Router) Lookup(method, path string) (CustomHandler, Params, bool) {
+func (r *Router) Lookup(method, path string) (EventHandler, Params, bool) {
 	if root := r.trees[method]; root != nil {
 		return root.getValue(path)
 	}
@@ -148,40 +154,28 @@ func (r *Router) allowed(path, reqMethod string) (allow string) {
 	return
 }
 
-// Support Lambda Function
-func (r *Router) MainHandler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	req := NewCustomResquestFromEvent(request)
-	res := NewCustomResponse()
-
-	r.ServeHTTP(res, req)
-
-	return res.ToAPIGatewayResponse()
-}
-
-func (r *Router) ServeHTTP(res *CustomResponse, req *CustomRequest) {
+func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 	if r.PanicHandler != nil {
-		defer r.recv(res, req)
+		defer r.recv(ctx, request)
 	}
 
-	path := req.Path
-	if root := r.trees[req.HTTPMethod]; root != nil {
+	path := request.Path
+	if root := r.trees[request.HTTPMethod]; root != nil {
 		if handle, _, tsr := root.getValue(path); handle != nil {
-			handle(res, req)
-			return
-		} else if req.HTTPMethod != "CONNECT" && path != "/" {
+			return handle(ctx, request)
+		} else if request.HTTPMethod != "CONNECT" && path != "/" {
 			code := http.StatusMovedPermanently
-			if req.HTTPMethod != "GET" {
-				code = http.StatusPermanentRedirect
+			if request.HTTPMethod != "GET" {
+				code = 307
 			}
 
 			if tsr && r.RedirectTrailingSlash {
 				if len(path) > 1 && path[len(path)-1] == '/' {
-					req.Path = path[:len(path)-1]
+					request.Path = path[:len(path)-1]
 				} else {
-					req.Path = path + "/"
+					request.Path = path + "/"
 				}
-				Redirect(res, req, req.URLString(), code)
-				return
+				return Redirect(ctx, request, request.Path, code)
 			}
 
 			if r.RedirectFixedPath {
@@ -190,40 +184,41 @@ func (r *Router) ServeHTTP(res *CustomResponse, req *CustomRequest) {
 					r.RedirectTrailingSlash,
 				)
 				if found {
-					req.Path = string(fixedPath)
-					Redirect(res, req, req.URLString(), code)
-					return
+					request.Path = string(fixedPath)
+					return Redirect(ctx, request, request.Path, code)
+
 				}
 			}
 		}
 	}
 
-	if req.HTTPMethod == "OPTIONS" && r.HandleOPTIONS {
-		if allow := r.allowed(path, req.HTTPMethod); len(allow) > 0 {
-			res.Headers.Set("Allow", allow)
-			res.SetStatusCode(http.StatusOK)
-			return
+	response := NewResponse()
+	if request.HTTPMethod == "OPTIONS" && r.HandleOPTIONS {
+		if allow := r.allowed(path, request.HTTPMethod); len(allow) > 0 {
+			response.Headers["Allow"] = allow
+			response.StatusCode = http.StatusOK
+			return response, nil
 		}
 	} else {
 		if r.HandleMethodNotAllowed {
-			if allow := r.allowed(path, req.HTTPMethod); len(allow) > 0 {
-				res.Headers.Set("Allow", allow)
+			if allow := r.allowed(path, request.HTTPMethod); len(allow) > 0 {
 				if r.MethodNotAllowed != nil {
-					r.MethodNotAllowed.ServeHTTP(res, req)
+					response, err := r.MethodNotAllowed.ServeEvent(ctx, request)
+					response.Headers["Allow"] = allow
+					return response, err
 				} else {
-					HTTPError(res,
-						"Method Not Allowed",
-						http.StatusMethodNotAllowed,
-					)
+					response, err := SetHTTPError(ctx, "Method Not Allowed", http.StatusMethodNotAllowed)
+					response.Headers["Allow"] = allow
+
+					return response, err
 				}
-				return
 			}
 		}
 	}
 
 	if r.NotFound != nil {
-		r.NotFound.ServeHTTP(res, req)
+		return r.NotFound.ServeEvent(ctx, request)
 	} else {
-		NotFound(res, req)
+		return SetNotFound(ctx)
 	}
 }

@@ -1,11 +1,14 @@
 package apigateway
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/aws/aws-lambda-go/events"
 )
 
 func printChildren(n *node, prefix string) {
@@ -21,9 +24,10 @@ func printChildren(n *node, prefix string) {
 // Used as a workaround since we can't compare functions or their addresses
 var fakeHandlerValue string
 
-func fakeHandler(val string) CustomHandler {
-	return func(*CustomResponse, *CustomRequest) {
+func fakeHandler(val string) EventHandler {
+	return func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 		fakeHandlerValue = val
+		return nil, nil
 	}
 }
 
@@ -45,7 +49,7 @@ func checkRequests(t *testing.T, tree *node, requests testRequests) {
 		} else if request.nilHandler {
 			t.Errorf("handle mismatch for route '%s': Expected nil handle", request.path)
 		} else {
-			handler(nil, nil)
+			handler(context.Background(), &events.APIGatewayProxyRequest{})
 			if fakeHandlerValue != request.route {
 				t.Errorf("handle mismatch for route '%s': Wrong handle (%s != %s)", request.path, fakeHandlerValue, request.route)
 			}
