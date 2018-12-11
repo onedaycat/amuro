@@ -24,10 +24,12 @@ func printChildren(n *node, prefix string) {
 // Used as a workaround since we can't compare functions or their addresses
 var fakeHandlerValue string
 
-func fakeHandler(val string) EventHandler {
-	return func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
-		fakeHandlerValue = val
-		return nil
+func fakeHandler(val string) *EventFlowHandler {
+	return &EventFlowHandler{
+		handler: func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+			fakeHandlerValue = val
+			return nil
+		},
 	}
 }
 
@@ -40,16 +42,16 @@ type testRequests []struct {
 
 func checkRequests(t *testing.T, tree *node, requests testRequests) {
 	for _, request := range requests {
-		handler, ps, _ := tree.getValue(request.path)
+		eventFlowHandler, ps, _ := tree.getValue(request.path)
 
-		if handler == nil {
+		if eventFlowHandler == nil {
 			if !request.nilHandler {
 				t.Errorf("handle mismatch for route '%s': Expected non-nil handle", request.path)
 			}
 		} else if request.nilHandler {
 			t.Errorf("handle mismatch for route '%s': Expected nil handle", request.path)
 		} else {
-			handler(context.Background(), &events.APIGatewayProxyRequest{})
+			eventFlowHandler.handler(context.Background(), &events.APIGatewayProxyRequest{})
 			if fakeHandlerValue != request.route {
 				t.Errorf("handle mismatch for route '%s': Wrong handle (%s != %s)", request.path, fakeHandlerValue, request.route)
 			}

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/onedaycat/errors"
 )
 
 // Make sure the Router conforms with the http.Handler interface
@@ -44,6 +45,8 @@ type Router struct {
 	MethodNotAllowed       Handle
 	PanicHandler           PanicHandlerFunc
 	ErrorHandler           ErrorHandlerFunc
+	preHandlers            []PreEventHandler
+	postHandlers           []PostEventHandler
 }
 
 func New() *Router {
@@ -55,35 +58,35 @@ func New() *Router {
 	}
 }
 
-func (r *Router) GET(path string, handler EventHandler) {
+func (r *Router) GET(path string, handler *EventFlowHandler) {
 	r.Handle("GET", path, handler)
 }
 
-func (r *Router) HEAD(path string, handler EventHandler) {
+func (r *Router) HEAD(path string, handler *EventFlowHandler) {
 	r.Handle("HEAD", path, handler)
 }
 
-func (r *Router) OPTIONS(path string, handler EventHandler) {
+func (r *Router) OPTIONS(path string, handler *EventFlowHandler) {
 	r.Handle("OPTIONS", path, handler)
 }
 
-func (r *Router) POST(path string, handler EventHandler) {
+func (r *Router) POST(path string, handler *EventFlowHandler) {
 	r.Handle("POST", path, handler)
 }
 
-func (r *Router) PUT(path string, handler EventHandler) {
+func (r *Router) PUT(path string, handler *EventFlowHandler) {
 	r.Handle("PUT", path, handler)
 }
 
-func (r *Router) PATCH(path string, handler EventHandler) {
+func (r *Router) PATCH(path string, handler *EventFlowHandler) {
 	r.Handle("PATCH", path, handler)
 }
 
-func (r *Router) DELETE(path string, handler EventHandler) {
+func (r *Router) DELETE(path string, handler *EventFlowHandler) {
 	r.Handle("DELETE", path, handler)
 }
 
-func (r *Router) Handle(method, path string, handler EventHandler) {
+func (r *Router) Handle(method, path string, handler *EventFlowHandler) {
 	if path[0] != '/' {
 		panic("path must begin with '/' in path '" + path + "'")
 	}
@@ -116,7 +119,7 @@ func (r *Router) recv(ctx context.Context, request *events.APIGatewayProxyReques
 	}
 }
 
-func (r *Router) Lookup(method, path string) (EventHandler, Params, bool) {
+func (r *Router) Lookup(method, path string) (*EventFlowHandler, Params, bool) {
 	if root := r.trees[method]; root != nil {
 		return root.getValue(path)
 	}
@@ -158,6 +161,54 @@ func (r *Router) allowed(path, reqMethod string) (allow string) {
 	return
 }
 
+func (r *Router) UsePreHandler(handlers ...PreEventHandler) {
+	if len(handlers) == 0 {
+		return
+	}
+
+	r.preHandlers = handlers
+}
+
+func (r *Router) UsePostHandler(handlers ...PostEventHandler) {
+	if len(handlers) == 0 {
+		return
+	}
+
+	r.postHandlers = handlers
+}
+
+func (r *Router) runPreHandler(ctx context.Context, request *events.APIGatewayProxyRequest, handlers []PreEventHandler) {
+	for _, handler := range handlers {
+		handler(ctx, request)
+	}
+}
+
+func (r *Router) runPostHandler(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse, handlers []PostEventHandler) {
+	for _, handler := range handlers {
+		handler(ctx, request, response)
+	}
+}
+
+func (r *Router) RunEventFlow(ctx context.Context, request *events.APIGatewayProxyRequest, eventFlowHandle *EventFlowHandler) *events.APIGatewayProxyResponse {
+	if eventFlowHandle != nil {
+		r.runPreHandler(ctx, request, r.preHandlers)
+		r.runPreHandler(ctx, request, eventFlowHandle.preHandlers)
+
+		response := eventFlowHandle.handler(ctx, request)
+
+		r.runPostHandler(ctx, request, response, eventFlowHandle.postHandlers)
+		r.runPostHandler(ctx, request, response, r.postHandlers)
+
+		return response
+	}
+
+	response := NewResponse()
+	response.StatusCode = http.StatusNotFound
+	response.Body = errors.InternalErrorf("HANDLE_NOT_FOUND", "Not found handle on path %s", request.Path).Error()
+
+	return response
+}
+
 func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
 	if r.PanicHandler != nil {
 		defer r.recv(ctx, request)
@@ -165,8 +216,8 @@ func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxy
 
 	path := request.Path
 	if root := r.trees[request.HTTPMethod]; root != nil {
-		if handle, _, tsr := root.getValue(path); handle != nil {
-			return handle(ctx, request)
+		if eventFlowHandle, _, tsr := root.getValue(path); eventFlowHandle != nil {
+			return r.RunEventFlow(ctx, request, eventFlowHandle)
 		} else if request.HTTPMethod != "CONNECT" && path != "/" {
 			code := http.StatusMovedPermanently
 			if request.HTTPMethod != "GET" {
