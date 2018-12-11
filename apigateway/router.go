@@ -102,10 +102,6 @@ func (r *Router) MainHandler(ctx context.Context, request events.APIGatewayProxy
 	return *response, err
 }
 
-func (r *Router) HandlerFunc(method, path string, handler EventHandler) {
-	r.Handle(method, path, handler)
-}
-
 func (r *Router) recv(ctx context.Context, request *events.APIGatewayProxyRequest) {
 	if rcv := recover(); rcv != nil {
 		r.PanicHandler(ctx, request, rcv)
