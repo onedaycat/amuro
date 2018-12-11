@@ -58,10 +58,10 @@ func Redirect(ctx context.Context, req *events.APIGatewayProxyRequest, urlEndpoi
 }
 
 func MethodNotAllowed(ctx context.Context, url string, code int) (*events.APIGatewayProxyResponse, error) {
-	return SetError(ctx, "Method Not Allowed", 405)
+	return NewError(ctx, "Method Not Allowed", 405)
 }
 
-func SetError(ctx context.Context, errorMessage string, code int) (*events.APIGatewayProxyResponse, error) {
+func NewError(ctx context.Context, errorMessage string, code int) (*events.APIGatewayProxyResponse, error) {
 	res := NewResponse()
 	res.StatusCode = code
 	res.Headers["Content-Type"] = "text/plain; charset=utf-8"
@@ -71,10 +71,10 @@ func SetError(ctx context.Context, errorMessage string, code int) (*events.APIGa
 	return res, nil
 }
 
-func SetNotFound(ctx context.Context) (*events.APIGatewayProxyResponse, error) {
-	return SetError(ctx, "404 page not found", http.StatusNotFound)
+func NotFound(ctx context.Context) (*events.APIGatewayProxyResponse, error) {
+	return NewError(ctx, "404 page not found", http.StatusNotFound)
 }
 
-func SetHTTPError(ctx context.Context, errorMessage string, code int) (*events.APIGatewayProxyResponse, error) {
-	return SetError(ctx, errorMessage, code)
+func HTTPError(ctx context.Context, errorMessage string, code int) (*events.APIGatewayProxyResponse, error) {
+	return NewError(ctx, errorMessage, code)
 }

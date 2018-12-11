@@ -12,13 +12,6 @@ func (f EventHandler) ServeEvent(ctx context.Context, request *events.APIGateway
 	return f(ctx, request)
 }
 
-func setHeader(res *events.APIGatewayProxyResponse, field, value string) {
-	if res.Headers == nil {
-		res.Headers = map[string]string{}
-	}
-	res.Headers[field] = value
-}
-
 func NewResponse() *events.APIGatewayProxyResponse {
 	return &events.APIGatewayProxyResponse{
 		Headers: map[string]string{},
