@@ -209,10 +209,10 @@ func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxy
 					return response, err
 				}
 
-				response, err := HTTPError(ctx, "Method Not Allowed", http.StatusMethodNotAllowed)
+				response := HTTPError(ctx, "Method Not Allowed", http.StatusMethodNotAllowed)
 				response.Headers["Allow"] = allow
 
-				return response, err
+				return response, nil
 			}
 		}
 	}
@@ -221,5 +221,5 @@ func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxy
 		return r.NotFound.ServeEvent(ctx, request)
 	}
 
-	return NotFound(ctx)
+	return NotFound(ctx), nil
 }

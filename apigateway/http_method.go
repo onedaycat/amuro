@@ -57,24 +57,24 @@ func Redirect(ctx context.Context, req *events.APIGatewayProxyRequest, urlEndpoi
 	return res, nil
 }
 
-func MethodNotAllowed(ctx context.Context, url string, code int) (*events.APIGatewayProxyResponse, error) {
+func MethodNotAllowed(ctx context.Context, url string, code int) *events.APIGatewayProxyResponse {
 	return NewError(ctx, "Method Not Allowed", 405)
 }
 
-func NewError(ctx context.Context, errorMessage string, code int) (*events.APIGatewayProxyResponse, error) {
+func NewError(ctx context.Context, errorMessage string, code int) *events.APIGatewayProxyResponse {
 	res := NewResponse()
 	res.StatusCode = code
 	res.Headers["Content-Type"] = "text/plain; charset=utf-8"
 	res.Headers["X-Content-Type-Options"] = "nosniff"
 	res.Body = errorMessage
 
-	return res, nil
+	return res
 }
 
-func NotFound(ctx context.Context) (*events.APIGatewayProxyResponse, error) {
+func NotFound(ctx context.Context) *events.APIGatewayProxyResponse {
 	return NewError(ctx, "404 page not found", http.StatusNotFound)
 }
 
-func HTTPError(ctx context.Context, errorMessage string, code int) (*events.APIGatewayProxyResponse, error) {
+func HTTPError(ctx context.Context, errorMessage string, code int) *events.APIGatewayProxyResponse {
 	return NewError(ctx, errorMessage, code)
 }
