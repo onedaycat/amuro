@@ -24,7 +24,7 @@ func HelloFunc(ctx context.Context, request *events.APIGatewayProxyRequest) *eve
 
 func main() {
   router := New()
-  router.GET("/hello", NewEvent(WithEventHandler(HelloFunc)))
+  router.GET("/hello", WithEventHandler(HelloFunc))
 
   lambda.Start(router.MainHandler)
 }
