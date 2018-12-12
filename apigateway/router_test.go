@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var handlerFunc = NewEvent(WithEventHandler(func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+var handlerFunc = WithEventHandler(func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
 	return nil
-}))
+})
 
 func newRequest(method, path string) *events.APIGatewayProxyRequest {
 	return &events.APIGatewayProxyRequest{HTTPMethod: method, Path: path}
@@ -41,7 +41,7 @@ func TestMainHandlerWithAPIGatewayEvent(t *testing.T) {
 		response.Body = request.QueryStringParameters["test"]
 		return response
 	}
-	helloHandler := NewEvent(WithEventHandler(helloFunction))
+	helloHandler := WithEventHandler(helloFunction)
 
 	router := New()
 	router.GET("/hello", helloHandler)
@@ -66,7 +66,7 @@ func TestErrorHandler(t *testing.T) {
 		response.Body = request.QueryStringParameters["test"]
 		return response
 	}
-	helloHandler := NewEvent(WithEventHandler(helloFunction))
+	helloHandler := WithEventHandler(helloFunction)
 
 	router := New()
 	router.GET("/hello", helloHandler)
@@ -103,7 +103,7 @@ func TestRouter(t *testing.T) {
 
 		return nil
 	}
-	userHandler := NewEvent(WithEventHandler(userFunction))
+	userHandler := WithEventHandler(userFunction)
 
 	router := New()
 	router.Handle("GET", "/user/:name", userHandler)
@@ -165,13 +165,13 @@ func TestRouterAPI(t *testing.T) {
 		return nil
 	}
 
-	getHandler := NewEvent(WithEventHandler(getFunction))
-	headHandler := NewEvent(WithEventHandler(headFunction))
-	optionHandler := NewEvent(WithEventHandler(optionFunction))
-	postHandler := NewEvent(WithEventHandler(postFunction))
-	putHandler := NewEvent(WithEventHandler(putFunction))
-	patchHandler := NewEvent(WithEventHandler(patchFunction))
-	deleteHandler := NewEvent(WithEventHandler(deleteFunction))
+	getHandler := WithEventHandler(getFunction)
+	headHandler := WithEventHandler(headFunction)
+	optionHandler := WithEventHandler(optionFunction)
+	postHandler := WithEventHandler(postFunction)
+	putHandler := WithEventHandler(putFunction)
+	patchHandler := WithEventHandler(patchFunction)
+	deleteHandler := WithEventHandler(deleteFunction)
 
 	router := New()
 	router.GET("/GET", getHandler)
@@ -248,12 +248,6 @@ func TestMiddlewareRouter(t *testing.T) {
 		return response
 	}
 
-	testEvent := NewEvent(
-		WithPreHandlers(preHandlers...),
-		WithPostHandlers(postHandlers...),
-		WithEventHandler(eventHandler),
-	)
-
 	mainPreHandlers := []preHandler{
 		func(ctx context.Context, request *events.APIGatewayProxyRequest) { routerPreHandler = true },
 		func(ctx context.Context, request *events.APIGatewayProxyRequest) { routerPreHandler2 = true },
@@ -274,7 +268,11 @@ func TestMiddlewareRouter(t *testing.T) {
 	mainRouter.UsePreHandler(mainPreHandlers...)
 	mainRouter.UsePostHandler(mainPostHandlers...)
 
-	mainRouter.POST("/foo", testEvent)
+	mainRouter.POST("/foo",
+		WithPreHandlers(preHandlers...),
+		WithPostHandlers(postHandlers...),
+		WithEventHandler(eventHandler),
+	)
 
 	req := newRequest("POST", "/foo")
 	res := mainRouter.ServeEvent(context.Background(), req)
@@ -341,13 +339,13 @@ func TestRouterOPTIONS(t *testing.T) {
 
 	// custom handler
 	var custom bool
-	customHandler := NewEvent(WithEventHandler(func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+	customHandler := WithEventHandler(func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
 		custom = true
 
 		response := NewResponse()
 		response.StatusCode = http.StatusOK
 		return response
-	}))
+	})
 
 	router.OPTIONS("/path", customHandler)
 
@@ -483,7 +481,7 @@ func TestRouterPanicHandler(t *testing.T) {
 		panic("oops!")
 		return nil
 	}
-	panicHandler := NewEvent(WithEventHandler(panicFunc))
+	panicHandler := WithEventHandler(panicFunc)
 
 	router := New()
 	router.PanicHandler = func(ctx context.Context, request *events.APIGatewayProxyRequest, p interface{}) {
@@ -514,7 +512,7 @@ func TestRouterLookup(t *testing.T) {
 		return nil
 	}
 
-	wantHandle := NewEvent(WithEventHandler(wantedFunc))
+	wantHandle := WithEventHandler(wantedFunc)
 	wantParams := Params{Param{"name", "gopher"}}
 
 	router := New()

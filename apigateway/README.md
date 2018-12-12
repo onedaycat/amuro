@@ -67,14 +67,12 @@ func main() {
     },
   }
 
-  helloHandler := NewEvent(
+  router := New()
+  router.GET("/hello",
     WithEventHandler(mainFunc)
     WithPreHandlers(preHandler...)
     WithPostHandlers(postHandler...)
   )
-
-  router := New()
-  router.GET("/hello",helloHandler)
   
   lambda.Start(router.MainHandler)
 }
@@ -102,10 +100,9 @@ func main() {
     mainHanlder = true
     return response
   }
-  helloHandler := NewEvent(WithEvenHandler(helloFunc))
 
   router := New()
-  router.GET("/hello", helloHandler)
+  router.GET("/hello", WithEvenHandler(helloFunc))
   
   mainPreHandlers := []preHandler{
     func(ctx context.Context, request *events.APIGatewayProxyRequest) { 

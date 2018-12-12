@@ -51,35 +51,35 @@ func New() *Router {
 	}
 }
 
-func (r *Router) GET(path string, handlers *event) {
-	r.Handle("GET", path, handlers)
+func (r *Router) GET(path string, options ...Option) {
+	r.Handle("GET", path, options...)
 }
 
-func (r *Router) HEAD(path string, handlers *event) {
-	r.Handle("HEAD", path, handlers)
+func (r *Router) HEAD(path string, options ...Option) {
+	r.Handle("HEAD", path, options...)
 }
 
-func (r *Router) OPTIONS(path string, handlers *event) {
-	r.Handle("OPTIONS", path, handlers)
+func (r *Router) OPTIONS(path string, options ...Option) {
+	r.Handle("OPTIONS", path, options...)
 }
 
-func (r *Router) POST(path string, handlers *event) {
-	r.Handle("POST", path, handlers)
+func (r *Router) POST(path string, options ...Option) {
+	r.Handle("POST", path, options...)
 }
 
-func (r *Router) PUT(path string, handlers *event) {
-	r.Handle("PUT", path, handlers)
+func (r *Router) PUT(path string, options ...Option) {
+	r.Handle("PUT", path, options...)
 }
 
-func (r *Router) PATCH(path string, handlers *event) {
-	r.Handle("PATCH", path, handlers)
+func (r *Router) PATCH(path string, options ...Option) {
+	r.Handle("PATCH", path, options...)
 }
 
-func (r *Router) DELETE(path string, handlers *event) {
-	r.Handle("DELETE", path, handlers)
+func (r *Router) DELETE(path string, options ...Option) {
+	r.Handle("DELETE", path, options...)
 }
 
-func (r *Router) Handle(method, path string, handlers *event) {
+func (r *Router) Handle(method, path string, options ...Option) {
 	if path[0] != '/' {
 		panic("path must begin with '/' in path '" + path + "'")
 	}
@@ -94,7 +94,8 @@ func (r *Router) Handle(method, path string, handlers *event) {
 		r.trees[method] = root
 	}
 
-	root.addRoute(path, handlers)
+	option := NewOption(options...)
+	root.addRoute(path, option)
 }
 
 func (r *Router) MainHandler(ctx context.Context, request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
@@ -112,7 +113,7 @@ func (r *Router) recv(ctx context.Context, request *events.APIGatewayProxyReques
 	}
 }
 
-func (r *Router) Lookup(method, path string) (*event, Params, bool) {
+func (r *Router) Lookup(method, path string) (*option, Params, bool) {
 	if root := r.trees[method]; root != nil {
 		return root.getValue(path)
 	}
@@ -182,14 +183,14 @@ func (r *Router) runPostHandler(ctx context.Context, request *events.APIGatewayP
 	}
 }
 
-func (r *Router) Run(ctx context.Context, request *events.APIGatewayProxyRequest, eventFlowHandle *event) *events.APIGatewayProxyResponse {
-	if eventFlowHandle != nil {
+func (r *Router) Run(ctx context.Context, request *events.APIGatewayProxyRequest, option *option) *events.APIGatewayProxyResponse {
+	if option != nil {
 		r.runPreHandler(ctx, request, r.preHandlers)
-		r.runPreHandler(ctx, request, eventFlowHandle.preHandlers)
+		r.runPreHandler(ctx, request, option.preHandlers)
 
-		response := eventFlowHandle.eventHandler(ctx, request)
+		response := option.eventHandler(ctx, request)
 
-		r.runPostHandler(ctx, request, response, eventFlowHandle.postHandlers)
+		r.runPostHandler(ctx, request, response, option.postHandlers)
 		r.runPostHandler(ctx, request, response, r.postHandlers)
 
 		return response

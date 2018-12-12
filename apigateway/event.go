@@ -10,39 +10,39 @@ type eventHandler func(ctx context.Context, request *events.APIGatewayProxyReque
 type preHandler func(ctx context.Context, request *events.APIGatewayProxyRequest)
 type postHandler func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse
 
-type Event func(e *event)
+type Option func(o *option)
 
-type event struct {
+type option struct {
 	preHandlers  []preHandler
 	postHandlers []postHandler
 	eventHandler eventHandler
 }
 
-func WithPreHandlers(preHandlers ...preHandler) Event {
-	return func(e *event) {
-		e.preHandlers = preHandlers
+func WithPreHandlers(preHandlers ...preHandler) Option {
+	return func(o *option) {
+		o.preHandlers = preHandlers
 	}
 }
 
-func WithPostHandlers(postHandlers ...postHandler) Event {
-	return func(e *event) {
-		e.postHandlers = postHandlers
+func WithPostHandlers(postHandlers ...postHandler) Option {
+	return func(o *option) {
+		o.postHandlers = postHandlers
 	}
 }
 
-func WithEventHandler(eventHandler eventHandler) Event {
-	return func(e *event) {
-		e.eventHandler = eventHandler
+func WithEventHandler(eventHandler eventHandler) Option {
+	return func(o *option) {
+		o.eventHandler = eventHandler
 	}
 }
 
-func NewEvent(events ...Event) *event {
-	e := &event{}
-	for _, event := range events {
-		event(e)
+func NewOption(opts ...Option) *option {
+	o := &option{}
+	for _, opt := range opts {
+		opt(o)
 	}
 
-	return e
+	return o
 }
 
 func NewResponse() *events.APIGatewayProxyResponse {
