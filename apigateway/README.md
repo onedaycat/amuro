@@ -46,7 +46,6 @@ func main() {
   mainFunc := func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
     response := NewResponse()
     response.StatusCode = http.StatusOK
-    mainHanlder = true
     return response
   }
 
@@ -101,7 +100,7 @@ func main() {
   }
 
   router := New()
-  router.GET("/hello", WithEvenHandler(helloFunc))
+  router.GET("/hello", helloFunc)
   
   mainPreHandlers := []preHandler{
     func(ctx context.Context, request *events.APIGatewayProxyRequest) { 
