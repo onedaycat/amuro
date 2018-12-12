@@ -6,24 +6,43 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 )
 
-type EventHandler func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse
-type PreEventHandler func(ctx context.Context, request *events.APIGatewayProxyRequest)
-type PostEventHandler func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse
+type eventHandler func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse
+type preHandler func(ctx context.Context, request *events.APIGatewayProxyRequest)
+type postHandler func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse
 
-type EventFlowHandler struct {
-	preHandlers  []PreEventHandler
-	handler      EventHandler
-	postHandlers []PostEventHandler
+type Event func(e *event)
+
+type event struct {
+	preHandlers  []preHandler
+	postHandlers []postHandler
+	eventHandler eventHandler
 }
 
-func (f EventHandler) ServeEvent(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
-	return f(ctx, request)
-}
-
-func NewEventFlowHandler(eventHandler EventHandler) *EventFlowHandler {
-	return &EventFlowHandler{
-		handler: eventHandler,
+func WithPreHandlers(preHandlers ...preHandler) Event {
+	return func(e *event) {
+		e.preHandlers = preHandlers
 	}
+}
+
+func WithPostHandlers(postHandlers ...postHandler) Event {
+	return func(e *event) {
+		e.postHandlers = postHandlers
+	}
+}
+
+func WithEventHandler(eventHandler eventHandler) Event {
+	return func(e *event) {
+		e.eventHandler = eventHandler
+	}
+}
+
+func NewEvent(events ...Event) *event {
+	e := &event{}
+	for _, event := range events {
+		event(e)
+	}
+
+	return e
 }
 
 func NewResponse() *events.APIGatewayProxyResponse {

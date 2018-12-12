@@ -43,7 +43,7 @@ type node struct {
 	maxParams uint8
 	indices   string
 	children  []*node
-	handler   *EventFlowHandler
+	handlers  *event
 	priority  uint32
 }
 
@@ -73,7 +73,7 @@ func (n *node) incrementChildPrio(pos int) int {
 
 // addRoute adds a node with the given handle to the path.
 // Not concurrency-safe!
-func (n *node) addRoute(path string, handler *EventFlowHandler) {
+func (n *node) addRoute(path string, handlers *event) {
 	fullPath := path
 	n.priority++
 	numParams := countParams(path)
@@ -104,7 +104,7 @@ func (n *node) addRoute(path string, handler *EventFlowHandler) {
 					nType:     static,
 					indices:   n.indices,
 					children:  n.children,
-					handler:   n.handler,
+					handlers:  n.handlers,
 					priority:  n.priority - 1,
 				}
 
@@ -119,7 +119,7 @@ func (n *node) addRoute(path string, handler *EventFlowHandler) {
 				// []byte for proper unicode char conversion, see #65
 				n.indices = string([]byte{n.path[i]})
 				n.path = path[:i]
-				n.handler = nil
+				n.handlers = nil
 				n.wildChild = false
 			}
 
@@ -188,24 +188,24 @@ func (n *node) addRoute(path string, handler *EventFlowHandler) {
 					n.incrementChildPrio(len(n.indices) - 1)
 					n = child
 				}
-				n.insertChild(numParams, path, fullPath, handler)
+				n.insertChild(numParams, path, fullPath, handlers)
 				return
 
 			} else if i == len(path) { // Make node a (in-path) leaf
-				if n.handler != nil {
+				if n.handlers != nil {
 					panic("a handle is already registered for path '" + fullPath + "'")
 				}
-				n.handler = handler
+				n.handlers = handlers
 			}
 			return
 		}
 	} else { // Empty tree
-		n.insertChild(numParams, path, fullPath, handler)
+		n.insertChild(numParams, path, fullPath, handlers)
 		n.nType = root
 	}
 }
 
-func (n *node) insertChild(numParams uint8, path, fullPath string, handler *EventFlowHandler) {
+func (n *node) insertChild(numParams uint8, path, fullPath string, handlers *event) {
 	var offset int // already handled bytes of the path
 
 	// find prefix until first wildcard (beginning with ':'' or '*'')
@@ -304,7 +304,7 @@ func (n *node) insertChild(numParams uint8, path, fullPath string, handler *Even
 				path:      path[i:],
 				nType:     catchAll,
 				maxParams: 1,
-				handler:   handler,
+				handlers:  handlers,
 				priority:  1,
 			}
 			n.children = []*node{child}
@@ -315,7 +315,7 @@ func (n *node) insertChild(numParams uint8, path, fullPath string, handler *Even
 
 	// insert remaining path part and handle to the leaf
 	n.path = path[offset:]
-	n.handler = handler
+	n.handlers = handlers
 }
 
 // Returns the handle registered with the given path (key). The values of
@@ -323,7 +323,7 @@ func (n *node) insertChild(numParams uint8, path, fullPath string, handler *Even
 // If no handle can be found, a TSR (trailing slash redirect) recommendation is
 // made if a handle exists with an extra (without the) trailing slash for the
 // given path.
-func (n *node) getValue(path string) (handler *EventFlowHandler, p Params, tsr bool) {
+func (n *node) getValue(path string) (handlers *event, p Params, tsr bool) {
 walk: // outer loop for walking the tree
 	for {
 		if len(path) > len(n.path) {
@@ -344,7 +344,7 @@ walk: // outer loop for walking the tree
 					// Nothing found.
 					// We can recommend to redirect to the same URL without a
 					// trailing slash if a leaf exists for that path.
-					tsr = (path == "/" && n.handler != nil)
+					tsr = (path == "/" && n.handlers != nil)
 					return
 
 				}
@@ -382,13 +382,13 @@ walk: // outer loop for walking the tree
 						return
 					}
 
-					if handler = n.handler; handler != nil {
+					if handlers = n.handlers; handlers != nil {
 						return
 					} else if len(n.children) == 1 {
 						// No handle found. Check if a handle for this path + a
 						// trailing slash exists for TSR recommendation
 						n = n.children[0]
-						tsr = (n.path == "/" && n.handler != nil)
+						tsr = (n.path == "/" && n.handlers != nil)
 					}
 
 					return
@@ -404,7 +404,7 @@ walk: // outer loop for walking the tree
 					p[i].Key = n.path[2:]
 					p[i].Value = path
 
-					handler = n.handler
+					handlers = n.handlers
 					return
 
 				default:
@@ -414,7 +414,7 @@ walk: // outer loop for walking the tree
 		} else if path == n.path {
 			// We should have reached the node containing the handle.
 			// Check if this node has a handle registered.
-			if handler = n.handler; handler != nil {
+			if handlers = n.handlers; handlers != nil {
 				return
 			}
 
@@ -428,8 +428,8 @@ walk: // outer loop for walking the tree
 			for i := 0; i < len(n.indices); i++ {
 				if n.indices[i] == '/' {
 					n = n.children[i]
-					tsr = (len(n.path) == 1 && n.handler != nil) ||
-						(n.nType == catchAll && n.children[0].handler != nil)
+					tsr = (len(n.path) == 1 && n.handlers != nil) ||
+						(n.nType == catchAll && n.children[0].handlers != nil)
 					return
 				}
 			}
@@ -441,7 +441,7 @@ walk: // outer loop for walking the tree
 		// extra trailing slash if a leaf exists for that path
 		tsr = (path == "/") ||
 			(len(n.path) == len(path)+1 && n.path[len(path)] == '/' &&
-				path == n.path[:len(n.path)-1] && n.handler != nil)
+				path == n.path[:len(n.path)-1] && n.handlers != nil)
 		return
 	}
 }
@@ -561,7 +561,7 @@ walk: // outer loop for walking the tree
 
 				// Nothing found. We can recommend to redirect to the same URL
 				// without a trailing slash if a leaf exists for that path
-				return ciPath, (fixTrailingSlash && path == "/" && n.handler != nil)
+				return ciPath, (fixTrailingSlash && path == "/" && n.handlers != nil)
 			}
 
 			n = n.children[0]
@@ -594,13 +594,13 @@ walk: // outer loop for walking the tree
 					return ciPath, false
 				}
 
-				if n.handler != nil {
+				if n.handlers != nil {
 					return ciPath, true
 				} else if fixTrailingSlash && len(n.children) == 1 {
 					// No handle found. Check if a handle for this path + a
 					// trailing slash exists
 					n = n.children[0]
-					if n.path == "/" && n.handler != nil {
+					if n.path == "/" && n.handlers != nil {
 						return append(ciPath, '/'), true
 					}
 				}
@@ -615,7 +615,7 @@ walk: // outer loop for walking the tree
 		} else {
 			// We should have reached the node containing the handle.
 			// Check if this node has a handle registered.
-			if n.handler != nil {
+			if n.handlers != nil {
 				return ciPath, true
 			}
 
@@ -625,8 +625,8 @@ walk: // outer loop for walking the tree
 				for i := 0; i < len(n.indices); i++ {
 					if n.indices[i] == '/' {
 						n = n.children[i]
-						if (len(n.path) == 1 && n.handler != nil) ||
-							(n.nType == catchAll && n.children[0].handler != nil) {
+						if (len(n.path) == 1 && n.handlers != nil) ||
+							(n.nType == catchAll && n.children[0].handlers != nil) {
 							return append(ciPath, '/'), true
 						}
 						return ciPath, false
@@ -644,7 +644,7 @@ walk: // outer loop for walking the tree
 			return ciPath, true
 		}
 		if len(loPath)+1 == len(loNPath) && loNPath[len(loPath)] == '/' &&
-			loPath[1:] == loNPath[1:len(loPath)] && n.handler != nil {
+			loPath[1:] == loNPath[1:len(loPath)] && n.handlers != nil {
 			return append(ciPath, n.path...), true
 		}
 	}

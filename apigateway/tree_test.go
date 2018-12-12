@@ -12,7 +12,7 @@ import (
 )
 
 func printChildren(n *node, prefix string) {
-	fmt.Printf(" %02d:%02d %s%s[%d] %v %t %d \r\n", n.priority, n.maxParams, prefix, n.path, len(n.children), n.handler, n.wildChild, n.nType)
+	fmt.Printf(" %02d:%02d %s%s[%d] %v %t %d \r\n", n.priority, n.maxParams, prefix, n.path, len(n.children), n.handlers, n.wildChild, n.nType)
 	for l := len(n.path); l > 0; l-- {
 		prefix += " "
 	}
@@ -24,9 +24,9 @@ func printChildren(n *node, prefix string) {
 // Used as a workaround since we can't compare functions or their addresses
 var fakeHandlerValue string
 
-func fakeHandler(val string) *EventFlowHandler {
-	return &EventFlowHandler{
-		handler: func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+func fakeHandler(val string) *event {
+	return &event{
+		eventHandler: func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
 			fakeHandlerValue = val
 			return nil
 		},
@@ -42,16 +42,16 @@ type testRequests []struct {
 
 func checkRequests(t *testing.T, tree *node, requests testRequests) {
 	for _, request := range requests {
-		eventFlowHandler, ps, _ := tree.getValue(request.path)
+		event, ps, _ := tree.getValue(request.path)
 
-		if eventFlowHandler == nil {
+		if event == nil {
 			if !request.nilHandler {
 				t.Errorf("handle mismatch for route '%s': Expected non-nil handle", request.path)
 			}
 		} else if request.nilHandler {
 			t.Errorf("handle mismatch for route '%s': Expected nil handle", request.path)
 		} else {
-			eventFlowHandler.handler(context.Background(), &events.APIGatewayProxyRequest{})
+			event.eventHandler(context.Background(), &events.APIGatewayProxyRequest{})
 			if fakeHandlerValue != request.route {
 				t.Errorf("handle mismatch for route '%s': Wrong handle (%s != %s)", request.path, fakeHandlerValue, request.route)
 			}
@@ -69,7 +69,7 @@ func checkPriorities(t *testing.T, n *node) uint32 {
 		prio += checkPriorities(t, n.children[i])
 	}
 
-	if n.handler != nil {
+	if n.handlers != nil {
 		prio++
 	}
 

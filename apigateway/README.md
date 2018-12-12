@@ -85,24 +85,27 @@ import (
     "github.com/aws/aws-lambda-go/lambda"
 )
 
+
+
 func main() {
+	helloFunc := func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+		response := NewResponse()
+		response.StatusCode = http.StatusOK
+		mainHanlder = true
+		return response
+	}
+	helloHandler := NewEvent(WithEvenHandler(helloFunc))
+
 	router := New()
-  router.GET("/hello", &EventFlowHandler{
-		handler: func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
-			response := NewResponse()
-			response.StatusCode = http.StatusOK
-			mainHanlder = true
-			return response
-		},
-	})
+  router.GET("/hello", helloHandler)
 
 
 	mainPreHandlers := []PreEventHandler{
 		func(ctx context.Context, request *events.APIGatewayProxyRequest) { 
-        // do something      
+			// do something      
     },
 		func(ctx context.Context, request *events.APIGatewayProxyRequest) { routerPreHandler2 = true
-        // do something
+			// do something
     },
 	}
 
@@ -112,7 +115,7 @@ func main() {
 			return response
 		},
 		func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse {
-      // do something\
+      // do something
 			return response
 		},
 	}
