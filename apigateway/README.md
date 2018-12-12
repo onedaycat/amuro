@@ -107,7 +107,7 @@ func main() {
   router := New()
   router.GET("/hello", helloHandler)
   
-  mainPreHandlers := []PreEventHandler{
+  mainPreHandlers := []preHandler{
     func(ctx context.Context, request *events.APIGatewayProxyRequest) { 
       // do something      
     },
@@ -116,7 +116,7 @@ func main() {
     },
   }
 
-  mainPostHandlers := []PostEventHandler{
+  mainPostHandlers := []postHandler{
     func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse {
       // do something			
       return response
