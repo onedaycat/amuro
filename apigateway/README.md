@@ -24,7 +24,7 @@ func HelloFunc(ctx context.Context, request *events.APIGatewayProxyRequest) *eve
 
 func main() {
   router := New()
-  router.GET("/hello", WithEventHandler(HelloFunc))
+  router.GET("/hello", HelloFunc)
 
   lambda.Start(router.MainHandler)
 }
@@ -68,10 +68,9 @@ func main() {
   }
 
   router := New()
-  router.GET("/hello",
-    WithEventHandler(mainFunc)
-    WithPreHandlers(preHandler...)
-    WithPostHandlers(postHandler...)
+  router.GET("/hello", mainFunc,
+    WithPreHandlers(preHandler...),
+    WithPostHandlers(postHandler...),
   )
   
   lambda.Start(router.MainHandler)
@@ -108,7 +107,7 @@ func main() {
     func(ctx context.Context, request *events.APIGatewayProxyRequest) { 
       // do something      
     },
-    func(ctx context.Context, request *events.APIGatewayProxyRequest) { routerPreHandler2 = true
+    func(ctx context.Context, request *events.APIGatewayProxyRequest) {
       // do something
     },
   }

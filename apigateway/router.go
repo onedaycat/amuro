@@ -9,7 +9,7 @@ import (
 )
 
 type PanicHandlerFunc func(context.Context, *events.APIGatewayProxyRequest, interface{})
-type ErrorHandlerFunc func(context.Context, *events.APIGatewayProxyRequest, *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse
+type ErrorHandlerFunc func(context.Context, *events.APIGatewayProxyRequest, events.APIGatewayProxyResponse)
 
 type Param struct {
 	Key   string
@@ -34,12 +34,12 @@ type Router struct {
 	RedirectFixedPath      bool
 	HandleMethodNotAllowed bool
 	HandleOPTIONS          bool
-	PathNotFound           eventHandler
-	MethodNotAllowed       eventHandler
-	PanicHandler           PanicHandlerFunc
-	ErrorHandler           ErrorHandlerFunc
-	preHandlers            []preHandler
-	postHandlers           []postHandler
+	PathNotFound           EventHandler
+	MethodNotAllowed       EventHandler
+	OnPanic                PanicHandlerFunc
+	OnError                ErrorHandlerFunc
+	preHandlers            []PreHandler
+	postHandlers           []PostHandler
 }
 
 func New() *Router {
@@ -51,37 +51,41 @@ func New() *Router {
 	}
 }
 
-func (r *Router) GET(path string, options ...Option) {
-	r.Handle("GET", path, options...)
+func (r *Router) GET(path string, handler EventHandler, options ...Option) {
+	r.Handle("GET", path, handler, options...)
 }
 
-func (r *Router) HEAD(path string, options ...Option) {
-	r.Handle("HEAD", path, options...)
+func (r *Router) HEAD(path string, handler EventHandler, options ...Option) {
+	r.Handle("HEAD", path, handler, options...)
 }
 
-func (r *Router) OPTIONS(path string, options ...Option) {
-	r.Handle("OPTIONS", path, options...)
+func (r *Router) OPTIONS(path string, handler EventHandler, options ...Option) {
+	r.Handle("OPTIONS", path, handler, options...)
 }
 
-func (r *Router) POST(path string, options ...Option) {
-	r.Handle("POST", path, options...)
+func (r *Router) POST(path string, handler EventHandler, options ...Option) {
+	r.Handle("POST", path, handler, options...)
 }
 
-func (r *Router) PUT(path string, options ...Option) {
-	r.Handle("PUT", path, options...)
+func (r *Router) PUT(path string, handler EventHandler, options ...Option) {
+	r.Handle("PUT", path, handler, options...)
 }
 
-func (r *Router) PATCH(path string, options ...Option) {
-	r.Handle("PATCH", path, options...)
+func (r *Router) PATCH(path string, handler EventHandler, options ...Option) {
+	r.Handle("PATCH", path, handler, options...)
 }
 
-func (r *Router) DELETE(path string, options ...Option) {
-	r.Handle("DELETE", path, options...)
+func (r *Router) DELETE(path string, handler EventHandler, options ...Option) {
+	r.Handle("DELETE", path, handler, options...)
 }
 
-func (r *Router) Handle(method, path string, options ...Option) {
+func (r *Router) Handle(method, path string, handler EventHandler, options ...Option) {
 	if path[0] != '/' {
 		panic("path must begin with '/' in path '" + path + "'")
+	}
+
+	if handler == nil {
+		panic("handler should not nil")
 	}
 
 	if r.trees == nil {
@@ -94,14 +98,26 @@ func (r *Router) Handle(method, path string, options ...Option) {
 		r.trees[method] = root
 	}
 
-	option := NewOption(options...)
-	root.addRoute(path, option)
+	opts := newOption(options...)
+	e := &event{
+		eventHandler: handler,
+	}
+
+	if len(opts.preHandlers) > 0 {
+		e.preHandlers = opts.preHandlers
+	}
+
+	if len(opts.postHandlers) > 0 {
+		e.postHandlers = opts.postHandlers
+	}
+
+	root.addRoute(path, e)
 }
 
 func (r *Router) MainHandler(ctx context.Context, request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
 	response := r.ServeEvent(ctx, &request)
-	if response.StatusCode >= 400 && r.ErrorHandler != nil {
-		response = r.ErrorHandler(ctx, &request, response)
+	if response.StatusCode >= 400 && r.OnError != nil {
+		r.OnError(ctx, &request, *response)
 	}
 
 	return *response
@@ -109,11 +125,11 @@ func (r *Router) MainHandler(ctx context.Context, request events.APIGatewayProxy
 
 func (r *Router) recv(ctx context.Context, request *events.APIGatewayProxyRequest) {
 	if rcv := recover(); rcv != nil {
-		r.PanicHandler(ctx, request, rcv)
+		r.OnPanic(ctx, request, rcv)
 	}
 }
 
-func (r *Router) Lookup(method, path string) (*option, Params, bool) {
+func (r *Router) Lookup(method, path string) (*event, Params, bool) {
 	if root := r.trees[method]; root != nil {
 		return root.getValue(path)
 	}
@@ -155,7 +171,7 @@ func (r *Router) allowed(path, reqMethod string) (allow string) {
 	return
 }
 
-func (r *Router) UsePreHandler(handlers ...preHandler) {
+func (r *Router) UsePreHandler(handlers ...PreHandler) {
 	if len(handlers) == 0 {
 		return
 	}
@@ -163,7 +179,7 @@ func (r *Router) UsePreHandler(handlers ...preHandler) {
 	r.preHandlers = handlers
 }
 
-func (r *Router) UsePostHandler(handlers ...postHandler) {
+func (r *Router) UsePostHandler(handlers ...PostHandler) {
 	if len(handlers) == 0 {
 		return
 	}
@@ -171,19 +187,19 @@ func (r *Router) UsePostHandler(handlers ...postHandler) {
 	r.postHandlers = handlers
 }
 
-func (r *Router) runPreHandler(ctx context.Context, request *events.APIGatewayProxyRequest, handlers []preHandler) {
+func (r *Router) runPreHandler(ctx context.Context, request *events.APIGatewayProxyRequest, handlers []PreHandler) {
 	for _, handler := range handlers {
 		handler(ctx, request)
 	}
 }
 
-func (r *Router) runPostHandler(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse, handlers []postHandler) {
+func (r *Router) runPostHandler(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse, handlers []PostHandler) {
 	for _, handler := range handlers {
 		handler(ctx, request, response)
 	}
 }
 
-func (r *Router) Run(ctx context.Context, request *events.APIGatewayProxyRequest, option *option) *events.APIGatewayProxyResponse {
+func (r *Router) Run(ctx context.Context, request *events.APIGatewayProxyRequest, option *event) *events.APIGatewayProxyResponse {
 	if option != nil {
 		r.runPreHandler(ctx, request, r.preHandlers)
 		r.runPreHandler(ctx, request, option.preHandlers)
@@ -204,7 +220,7 @@ func (r *Router) Run(ctx context.Context, request *events.APIGatewayProxyRequest
 }
 
 func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
-	if r.PanicHandler != nil {
+	if r.OnPanic != nil {
 		defer r.recv(ctx, request)
 	}
 
