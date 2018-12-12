@@ -8,19 +8,19 @@ amuro have features same [httprouter](https://github.com/julienschmidt/httproute
 package main
 
 import (
-    "fmt"
+  "fmt"
 
-    "github.com/aws/aws-lambda-go/events"
-    "github.com/aws/aws-lambda-go/lambda"
+  "github.com/aws/aws-lambda-go/events"
+  "github.com/aws/aws-lambda-go/lambda"
 )
 
 
 func HelloFunc(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
-		response := NewResponse()
-		response.StatusCode = http.StatusOK
-		response.Body = request.QueryStringParameters["name"]
-		return response
-	}
+  response := NewResponse()
+  response.StatusCode = http.StatusOK
+  response.Body = request.QueryStringParameters["name"]
+  return response
+}
 
 func main() {
 	router := New()
@@ -36,10 +36,10 @@ func main() {
 package main
 
 import (
-    "fmt"
+  "fmt"
 
-    "github.com/aws/aws-lambda-go/events"
-    "github.com/aws/aws-lambda-go/lambda"
+  "github.com/aws/aws-lambda-go/events"
+  "github.com/aws/aws-lambda-go/lambda"
 )
 
 func main() {
@@ -79,10 +79,10 @@ func main() {
 package main
 
 import (
-    "fmt"
+  "fmt"
 
-    "github.com/aws/aws-lambda-go/events"
-    "github.com/aws/aws-lambda-go/lambda"
+  "github.com/aws/aws-lambda-go/events"
+  "github.com/aws/aws-lambda-go/lambda"
 )
 
 
