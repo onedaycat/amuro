@@ -50,13 +50,13 @@ func main() {
     return response
   }
 
-  preHandlers := []PreHandler{
+  preHandlers := []preHandler{
     func(ctx context.Context, request *events.APIGatewayProxyRequest) { 
       // do something        
     },
   }
 
-  postHandlers := []PostHandler{
+  postHandlers := []postHandler{
     func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse {
       // do something
       return response
