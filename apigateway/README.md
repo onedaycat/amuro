@@ -23,10 +23,10 @@ func HelloFunc(ctx context.Context, request *events.APIGatewayProxyRequest) *eve
 }
 
 func main() {
-	router := New()
-  router.GET("/hello", NewEventFlowHandler(HelloFunc))
-  
-	lambda.Start(router.MainHandler)
+  router := New()
+  router.GET("/hello", NewEvent(WithEventHandler(HelloFunc)))
+
+  lambda.Start(router.MainHandler)
 }
 ```
 
@@ -43,30 +43,38 @@ import (
 )
 
 func main() {
-	router := New()
-  router.GET("/hello", &EventFlowHandler{
-    preHandlers: []PreEventHandler{
-			func(ctx context.Context, request *events.APIGatewayProxyRequest) { 
-        // do something        
-      },
-		},
-    handler: func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
-      response := NewResponse()
-      response.StatusCode = http.StatusOK
-      mainHanlder = true
+  mainFunc := func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+    response := NewResponse()
+    response.StatusCode = http.StatusOK
+    mainHanlder = true
+    return response
+  }
+
+  preHandlers := []PreHandler{
+    func(ctx context.Context, request *events.APIGatewayProxyRequest) { 
+      // do something        
+    },
+  }
+
+  postHandlers := []PostHandler{
+    func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse {
+      // do something
       return response
     },
-    postHandlers: []PostEventHandler{
-      func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse {
-        // do something
-        return response
-      },
-      func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse {
-        // do something
-        return response
-      },
+    func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse {
+      // do something
+      return response
     },
-	})
+  }
+
+	helloHandler := NewEvent(
+    WithEventHandler(mainFunc)
+    WithPreHandlers(preHandler...)
+    WithPostHandlers(postHandler...)
+  )
+
+  router := New()
+  router.GET("/hello",helloHandler)
   
 	lambda.Start(router.MainHandler)
 }
