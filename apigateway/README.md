@@ -67,7 +67,7 @@ func main() {
     },
   }
 
-	helloHandler := NewEvent(
+  helloHandler := NewEvent(
     WithEventHandler(mainFunc)
     WithPreHandlers(preHandler...)
     WithPostHandlers(postHandler...)
@@ -76,7 +76,7 @@ func main() {
   router := New()
   router.GET("/hello",helloHandler)
   
-	lambda.Start(router.MainHandler)
+  lambda.Start(router.MainHandler)
 }
 ```
 
@@ -96,42 +96,41 @@ import (
 
 
 func main() {
-	helloFunc := func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
-		response := NewResponse()
-		response.StatusCode = http.StatusOK
-		mainHanlder = true
-		return response
-	}
-	helloHandler := NewEvent(WithEvenHandler(helloFunc))
+  helloFunc := func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+    response := NewResponse()
+    response.StatusCode = http.StatusOK
+    mainHanlder = true
+    return response
+  }
+  helloHandler := NewEvent(WithEvenHandler(helloFunc))
 
   router := New()
   router.GET("/hello", helloHandler)
-
-	mainPreHandlers := []PreEventHandler{
-		func(ctx context.Context, request *events.APIGatewayProxyRequest) { 
-			// do something      
+  
+  mainPreHandlers := []PreEventHandler{
+    func(ctx context.Context, request *events.APIGatewayProxyRequest) { 
+      // do something      
     },
-		func(ctx context.Context, request *events.APIGatewayProxyRequest) { routerPreHandler2 = true
-			// do something
-    },
-	}
-
-	mainPostHandlers := []PostEventHandler{
-		func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse {
-      // do something			
-			return response
-		},
-		func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse {
+    func(ctx context.Context, request *events.APIGatewayProxyRequest) { routerPreHandler2 = true
       // do something
-			return response
-		},
-	}
+    },
+  }
+
+  mainPostHandlers := []PostEventHandler{
+    func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse {
+      // do something			
+      return response
+    },
+    func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse {
+      // do something
+      return response
+    },
+  }
 
   mainRouter.UsePreHandler(mainPreHandlers...)
-	mainRouter.UsePostHandler(mainPostHandlers...)
-
+  mainRouter.UsePostHandler(mainPostHandlers...)
   
-	lambda.Start(router.MainHandler)
+  lambda.Start(router.MainHandler)
 }
 ```
 
@@ -149,11 +148,11 @@ func CustomNotFound(ctx context.Context, request *events.APIGatewayProxyRequest)
 }
 
 func main() {
-	router := New()
+  router := New()
   router.GET("/hello", HelloFunc)
   
   router.NotFound = CustomNotFound
   
-	lambda.Start(router.MainHandler)
+  lambda.Start(router.MainHandler)
 }
 ```
