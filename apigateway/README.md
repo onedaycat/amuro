@@ -49,13 +49,13 @@ func main() {
     return response
   }
 
-  preHandlers := []preHandler{
+  preHandlers := []PreHandler{
     func(ctx context.Context, request *events.APIGatewayProxyRequest) { 
       // do something        
     },
   }
 
-  postHandlers := []postHandler{
+  postHandlers := []PostHandler{
     func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse {
       // do something
       return response
@@ -102,7 +102,7 @@ func main() {
   router := New()
   router.GET("/hello", helloFunc)
   
-  mainPreHandlers := []preHandler{
+  mainPreHandlers := []PreHandler{
     func(ctx context.Context, request *events.APIGatewayProxyRequest) { 
       // do something      
     },
@@ -111,7 +111,7 @@ func main() {
     },
   }
 
-  mainPostHandlers := []postHandler{
+  mainPostHandlers := []PostHandler{
     func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse {
       // do something			
       return response
