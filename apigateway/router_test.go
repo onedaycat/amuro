@@ -53,7 +53,7 @@ func TestMainHandlerWithAPIGatewayEvent(t *testing.T) {
 		},
 	}
 
-	res := router.MainHandler(context.Background(), req)
+	res, _ := router.MainHandler(context.Background(), req)
 	assert.Equal(t, http.StatusOK, res.StatusCode)
 	assert.Equal(t, "bar", res.Body)
 }
@@ -77,7 +77,7 @@ func TestErrorHandler(t *testing.T) {
 		},
 	}
 
-	res := router.MainHandler(context.Background(), req)
+	res, _ := router.MainHandler(context.Background(), req)
 	assert.Equal(t, http.StatusNotFound, res.StatusCode)
 	assert.Equal(t, "bar", res.Body)
 
@@ -85,7 +85,7 @@ func TestErrorHandler(t *testing.T) {
 	router.OnError = func(ctx context.Context, request *events.APIGatewayProxyRequest, response events.APIGatewayProxyResponse) {
 		routed = true
 	}
-	res = router.MainHandler(context.Background(), req)
+	res, _ = router.MainHandler(context.Background(), req)
 	assert.True(t, routed)
 	assert.Equal(t, http.StatusNotFound, res.StatusCode)
 	assert.Equal(t, "bar", res.Body)
