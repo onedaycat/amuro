@@ -43,10 +43,10 @@ import (
 )
 
 func main() {
-  mainFunc := func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+  mainFunc := func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
     response := NewResponse()
     response.StatusCode = http.StatusOK
-    return response
+    return response, nil
   }
 
   preHandlers := []PreHandler{
@@ -56,11 +56,11 @@ func main() {
   }
 
   postHandlers := []PostHandler{
-    func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse {
+    func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse, err error) *events.APIGatewayProxyResponse {
       // do something
       return response
     },
-    func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse {
+    func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse, err error) *events.APIGatewayProxyResponse {
       // do something
       return response
     },
@@ -92,11 +92,11 @@ import (
 
 
 func main() {
-  helloFunc := func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+  helloFunc := func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
     response := NewResponse()
     response.StatusCode = http.StatusOK
     mainHanlder = true
-    return response
+    return response, nil
   }
 
   router := New()
@@ -112,11 +112,11 @@ func main() {
   }
 
   mainPostHandlers := []PostHandler{
-    func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse {
+    func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse, err error) *events.APIGatewayProxyResponse {
       // do something			
       return response
     },
-    func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse {
+    func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse, err error) *events.APIGatewayProxyResponse {
       // do something
       return response
     },
@@ -135,18 +135,18 @@ func main() {
 amuro has support custom handler (NotFound, MethodNotAllowed, PanicHandler, ErrorHandler)
 
 ```
-func CustomNotFound(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+func CustomPathNotFound(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
   response := NewResponse()
   response.StatusCode = http.StatusNotFound
   response.Body = "custom_notfound"
-  return response
+  return response, nil
 }
 
 func main() {
   router := New()
   router.GET("/hello", HelloFunc)
   
-  router.NotFound = CustomNotFound
+  router.PathNotFound = CustomPathNotFound
   
   lambda.Start(router.MainHandler)
 }
