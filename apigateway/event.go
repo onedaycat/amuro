@@ -6,9 +6,9 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 )
 
-type EventHandler func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse
+type EventHandler func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error)
 type PreHandler func(ctx context.Context, request *events.APIGatewayProxyRequest)
-type PostHandler func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse
+type PostHandler func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse, err error) *events.APIGatewayProxyResponse
 
 type Option func(o *option)
 
