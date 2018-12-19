@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/onedaycat/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -63,7 +64,7 @@ func TestErrorHandler(t *testing.T) {
 		response := NewResponse()
 		response.StatusCode = http.StatusNotFound
 		response.Body = request.QueryStringParameters["test"]
-		return response, nil
+		return response, errors.InternalError("test_error", "trigger error handle with error")
 	}
 
 	router := New()
@@ -83,6 +84,7 @@ func TestErrorHandler(t *testing.T) {
 
 	routed := false
 	router.OnError = func(ctx context.Context, request *events.APIGatewayProxyRequest, response events.APIGatewayProxyResponse, err error) {
+		assert.Error(t, err)
 		routed = true
 	}
 	res, _ = router.MainHandler(context.Background(), req)

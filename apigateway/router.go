@@ -116,7 +116,7 @@ func (r *Router) Handle(method, path string, handler EventHandler, options ...Op
 
 func (r *Router) MainHandler(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	response, err := r.ServeEvent(ctx, &request)
-	if response.StatusCode >= 400 && r.OnError != nil {
+	if response.StatusCode >= 400 && r.OnError != nil && err != nil {
 		r.OnError(ctx, &request, *response, err)
 	}
 
@@ -252,7 +252,6 @@ func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxy
 				if found {
 					request.Path = string(fixedPath)
 					return Redirect(ctx, request, request.Path, code), nil
-
 				}
 			}
 		}
