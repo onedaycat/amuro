@@ -221,13 +221,13 @@ func TestMiddlewareRouter(t *testing.T) {
 	}
 
 	postHandlers := []PostHandler{
-		func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) (*events.APIGatewayProxyResponse, error) {
+		func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse, err error) *events.APIGatewayProxyResponse {
 			mainPostHandler = true
-			return response, nil
+			return response
 		},
-		func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) (*events.APIGatewayProxyResponse, error) {
+		func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse, err error) *events.APIGatewayProxyResponse {
 			mainPostHandler2 = true
-			return response, nil
+			return response
 		},
 	}
 
@@ -244,13 +244,13 @@ func TestMiddlewareRouter(t *testing.T) {
 	}
 
 	mainPostHandlers := []PostHandler{
-		func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) (*events.APIGatewayProxyResponse, error) {
+		func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse, err error) *events.APIGatewayProxyResponse {
 			routerPostHandler = true
-			return response, nil
+			return response
 		},
-		func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) (*events.APIGatewayProxyResponse, error) {
+		func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse, err error) *events.APIGatewayProxyResponse {
 			routerPostHandler2 = true
-			return response, nil
+			return response
 		},
 	}
 

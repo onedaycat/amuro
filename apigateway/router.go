@@ -193,9 +193,9 @@ func (r *Router) runPreHandler(ctx context.Context, request *events.APIGatewayPr
 	}
 }
 
-func (r *Router) runPostHandler(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse, handlers []PostHandler) {
+func (r *Router) runPostHandler(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse, err error, handlers []PostHandler) {
 	for _, handler := range handlers {
-		handler(ctx, request, response)
+		handler(ctx, request, response, err)
 	}
 }
 
@@ -206,8 +206,8 @@ func (r *Router) Run(ctx context.Context, request *events.APIGatewayProxyRequest
 
 		response, err := option.eventHandler(ctx, request)
 
-		r.runPostHandler(ctx, request, response, option.postHandlers)
-		r.runPostHandler(ctx, request, response, r.postHandlers)
+		r.runPostHandler(ctx, request, response, err, option.postHandlers)
+		r.runPostHandler(ctx, request, response, err, r.postHandlers)
 
 		return response, err
 	}
