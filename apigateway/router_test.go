@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var handlerFunc = func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
-	return nil
+var handlerFunc = func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
+	return nil, nil
 }
 
 func newRequest(method, path string) *events.APIGatewayProxyRequest {
@@ -35,11 +35,11 @@ func TestParams(t *testing.T) {
 }
 
 func TestMainHandlerWithAPIGatewayEvent(t *testing.T) {
-	helloFunction := func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+	helloFunction := func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 		response := NewResponse()
 		response.StatusCode = http.StatusOK
 		response.Body = request.QueryStringParameters["test"]
-		return response
+		return response, nil
 	}
 
 	router := New()
@@ -59,11 +59,11 @@ func TestMainHandlerWithAPIGatewayEvent(t *testing.T) {
 }
 
 func TestErrorHandler(t *testing.T) {
-	helloFunction := func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+	helloFunction := func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 		response := NewResponse()
 		response.StatusCode = http.StatusNotFound
 		response.Body = request.QueryStringParameters["test"]
-		return response
+		return response, nil
 	}
 
 	router := New()
@@ -82,7 +82,7 @@ func TestErrorHandler(t *testing.T) {
 	assert.Equal(t, "bar", res.Body)
 
 	routed := false
-	router.OnError = func(ctx context.Context, request *events.APIGatewayProxyRequest, response events.APIGatewayProxyResponse) {
+	router.OnError = func(ctx context.Context, request *events.APIGatewayProxyRequest, response events.APIGatewayProxyResponse, err error) {
 		routed = true
 	}
 	res, _ = router.MainHandler(context.Background(), req)
@@ -94,11 +94,11 @@ func TestErrorHandler(t *testing.T) {
 
 func TestRouter(t *testing.T) {
 	routed := false
-	userFunction := func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+	userFunction := func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 		routed = true
 		assert.Equal(t, "gopher", request.PathParameters["name"])
 
-		return nil
+		return nil, nil
 	}
 
 	router := New()
@@ -118,47 +118,47 @@ type handlerStruct struct {
 	handled *bool
 }
 
-func (h handlerStruct) ServeEvent(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+func (h handlerStruct) ServeEvent(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 	*h.handled = true
-	return nil
+	return nil, nil
 }
 
 func TestRouterAPI(t *testing.T) {
 	var get, head, options, post, put, patch, delete bool
 
-	getFunction := func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+	getFunction := func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 		get = true
-		return nil
+		return nil, nil
 	}
 
-	headFunction := func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+	headFunction := func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 		head = true
-		return nil
+		return nil, nil
 	}
 
-	optionFunction := func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+	optionFunction := func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 		options = true
-		return nil
+		return nil, nil
 	}
 
-	postFunction := func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+	postFunction := func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 		post = true
-		return nil
+		return nil, nil
 	}
 
-	putFunction := func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+	putFunction := func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 		put = true
-		return nil
+		return nil, nil
 	}
 
-	patchFunction := func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+	patchFunction := func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 		patch = true
-		return nil
+		return nil, nil
 	}
 
-	deleteFunction := func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+	deleteFunction := func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 		delete = true
-		return nil
+		return nil, nil
 	}
 
 	router := New()
@@ -219,21 +219,21 @@ func TestMiddlewareRouter(t *testing.T) {
 	}
 
 	postHandlers := []PostHandler{
-		func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse {
+		func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) (*events.APIGatewayProxyResponse, error) {
 			mainPostHandler = true
-			return response
+			return response, nil
 		},
-		func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse {
+		func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) (*events.APIGatewayProxyResponse, error) {
 			mainPostHandler2 = true
-			return response
+			return response, nil
 		},
 	}
 
-	eventHandler := func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+	eventHandler := func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 		response := NewResponse()
 		response.StatusCode = http.StatusOK
 		mainHanlder = true
-		return response
+		return response, nil
 	}
 
 	mainPreHandlers := []PreHandler{
@@ -242,13 +242,13 @@ func TestMiddlewareRouter(t *testing.T) {
 	}
 
 	mainPostHandlers := []PostHandler{
-		func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse {
+		func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) (*events.APIGatewayProxyResponse, error) {
 			routerPostHandler = true
-			return response
+			return response, nil
 		},
-		func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) *events.APIGatewayProxyResponse {
+		func(ctx context.Context, request *events.APIGatewayProxyRequest, response *events.APIGatewayProxyResponse) (*events.APIGatewayProxyResponse, error) {
 			routerPostHandler2 = true
-			return response
+			return response, nil
 		},
 	}
 
@@ -262,7 +262,8 @@ func TestMiddlewareRouter(t *testing.T) {
 	)
 
 	req := newRequest("POST", "/foo")
-	res := mainRouter.ServeEvent(context.Background(), req)
+	res, err := mainRouter.ServeEvent(context.Background(), req)
+	assert.NoError(t, err)
 	assert.True(t, mainPreHandler)
 	assert.True(t, mainPreHandler2)
 	assert.True(t, mainHanlder)
@@ -289,19 +290,21 @@ func TestRouterOPTIONS(t *testing.T) {
 	// test not allowed
 	// * (server)
 	req := newRequest("OPTIONS", "*")
-	res := router.ServeEvent(context.Background(), req)
+	res, err := router.ServeEvent(context.Background(), req)
+	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, res.StatusCode, "OPTIONS handling failed: Code=%d, Header=%v", res.StatusCode, res.Headers)
 	assert.Equal(t, "POST, OPTIONS", res.Headers["Allow"], "unexpected Allow header value: %v", res.Headers["Allow"])
 
 	// path
 	req = newRequest("OPTIONS", "/path")
-	res = router.ServeEvent(context.Background(), req)
+	res, err = router.ServeEvent(context.Background(), req)
+	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, res.StatusCode, "OPTIONS handling failed: Code=%d, Header=%v", res.StatusCode, res.Headers)
 	assert.Equal(t, "POST, OPTIONS", res.Headers["Allow"], "unexpected Allow header value: %v", res.Headers["Allow"])
 
 	req = newRequest("OPTIONS", "/doesnotexist")
-	res = router.ServeEvent(context.Background(), req)
-
+	res, err = router.ServeEvent(context.Background(), req)
+	assert.NoError(t, err)
 	assert.Equal(t, http.StatusNotFound, res.StatusCode, "OPTIONS handling failed: Code=%d, Header=%v", res.StatusCode, res.Headers)
 
 	// add another method
@@ -310,7 +313,8 @@ func TestRouterOPTIONS(t *testing.T) {
 	// test again
 	// * (server)
 	req = newRequest("OPTIONS", "*")
-	res = router.ServeEvent(context.Background(), req)
+	res, err = router.ServeEvent(context.Background(), req)
+	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, res.StatusCode, "OPTIONS handling failed: Code=%d, Header=%v", res.StatusCode, res.Headers)
 	if allow := res.Headers["Allow"]; allow != "POST, GET, OPTIONS" && allow != "GET, POST, OPTIONS" {
 		t.Error("unexpected Allow header value: " + allow)
@@ -318,7 +322,8 @@ func TestRouterOPTIONS(t *testing.T) {
 
 	// path
 	req = newRequest("OPTIONS", "/path")
-	res = router.ServeEvent(context.Background(), req)
+	res, err = router.ServeEvent(context.Background(), req)
+	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, res.StatusCode, "OPTIONS handling failed: Code=%d, Header=%v", res.StatusCode, res.Headers)
 	if allow := res.Headers["Allow"]; allow != "POST, GET, OPTIONS" && allow != "GET, POST, OPTIONS" {
 		t.Error("unexpected Allow header value: " + allow)
@@ -326,12 +331,12 @@ func TestRouterOPTIONS(t *testing.T) {
 
 	// custom handler
 	var custom bool
-	customHandler := func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+	customHandler := func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 		custom = true
 
 		response := NewResponse()
 		response.StatusCode = http.StatusOK
-		return response
+		return response, nil
 	}
 
 	router.OPTIONS("/path", customHandler)
@@ -339,7 +344,8 @@ func TestRouterOPTIONS(t *testing.T) {
 	// test again
 	// * (server)
 	req = newRequest("OPTIONS", "*")
-	res = router.ServeEvent(context.Background(), req)
+	res, err = router.ServeEvent(context.Background(), req)
+	assert.NoError(t, err)
 	assert.False(t, custom)
 	assert.Equal(t, http.StatusOK, res.StatusCode, "OPTIONS handling failed: Code=%d, Header=%v", res.StatusCode, res.Headers)
 	if allow := res.Headers["Allow"]; allow != "POST, GET, OPTIONS" && allow != "GET, POST, OPTIONS" {
@@ -348,7 +354,8 @@ func TestRouterOPTIONS(t *testing.T) {
 
 	// path
 	req = newRequest("OPTIONS", "/path")
-	res = router.ServeEvent(context.Background(), req)
+	res, err = router.ServeEvent(context.Background(), req)
+	assert.NoError(t, err)
 	assert.True(t, custom)
 	assert.Equal(t, http.StatusOK, res.StatusCode, "OPTIONS handling failed: Code=%d, Header=%v", res.StatusCode, res.Headers)
 }
@@ -361,7 +368,8 @@ func TestRouterNotAllowed(t *testing.T) {
 
 	// test not allowed
 	req := newRequest("GET", "/path")
-	res := router.ServeEvent(context.Background(), req)
+	res, err := router.ServeEvent(context.Background(), req)
+	assert.NoError(t, err)
 	assert.Equal(t, http.StatusMethodNotAllowed, res.StatusCode, "NotAllowed handling failed: Code=%d, Header=%v", res.StatusCode, res.Headers)
 	if allow := res.Headers["Allow"]; allow != "POST, OPTIONS" {
 		t.Error("unexpected Allow header value: " + allow)
@@ -373,7 +381,8 @@ func TestRouterNotAllowed(t *testing.T) {
 
 	// test again
 	req = newRequest("GET", "/path")
-	res = router.ServeEvent(context.Background(), req)
+	res, err = router.ServeEvent(context.Background(), req)
+	assert.NoError(t, err)
 	assert.Equal(t, http.StatusMethodNotAllowed, res.StatusCode, "NotAllowed handling failed: Code=%d, Header=%v", res.StatusCode, res.Headers)
 	if allow := res.Headers["Allow"]; allow != "POST, DELETE, OPTIONS" && allow != "DELETE, POST, OPTIONS" {
 		t.Error("unexpected Allow header value: " + allow)
@@ -381,14 +390,15 @@ func TestRouterNotAllowed(t *testing.T) {
 
 	// test custom handler
 	responseText := "custom method"
-	router.MethodNotAllowed = func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+	router.MethodNotAllowed = func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 		response := NewResponse()
 		response.StatusCode = http.StatusTeapot
 		response.Body = responseText
-		return response
+		return response, nil
 	}
 
-	res = router.ServeEvent(context.Background(), req)
+	res, err = router.ServeEvent(context.Background(), req)
+	assert.NoError(t, err)
 	assert.Equal(t, "custom method", res.Body)
 	assert.Equal(t, http.StatusTeapot, res.StatusCode)
 
@@ -420,7 +430,8 @@ func TestRouterNotFound(t *testing.T) {
 	}
 	for _, tr := range testRoutes {
 		req := newRequest("GET", tr.route)
-		res := router.ServeEvent(context.Background(), req)
+		res, err := router.ServeEvent(context.Background(), req)
+		assert.NoError(t, err)
 		if !(res.StatusCode == tr.code && (res.StatusCode == http.StatusNotFound || res.Headers["Location"] == tr.location)) {
 			t.Errorf("NotFound handling route %s failed: Code=%d, Header=%v", tr.route, res.StatusCode, res.Headers["Location"])
 		}
@@ -428,16 +439,17 @@ func TestRouterNotFound(t *testing.T) {
 
 	// Test custom not found handler
 	var notFound bool
-	router.PathNotFound = func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+	router.PathNotFound = func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 		notFound = true
 
 		response := NewResponse()
 		response.StatusCode = http.StatusNotFound
-		return response
+		return response, nil
 	}
 
 	req := newRequest("GET", "/nope")
-	res := router.ServeEvent(context.Background(), req)
+	res, err := router.ServeEvent(context.Background(), req)
+	assert.NoError(t, err)
 	if !(res.StatusCode == http.StatusNotFound && notFound == true) {
 		t.Errorf("Custom NotFound handler failed: Code=%d, Header=%v", res.StatusCode, res.Headers)
 	}
@@ -446,7 +458,8 @@ func TestRouterNotFound(t *testing.T) {
 	router.PATCH("/path", handlerFunc)
 
 	req = newRequest("PATCH", "/path/")
-	res = router.ServeEvent(context.Background(), req)
+	res, err = router.ServeEvent(context.Background(), req)
+	assert.NoError(t, err)
 	if !(res.StatusCode == 307 && fmt.Sprint(res.Headers) == "map[Location:/path]") {
 		t.Errorf("Custom NotFound handler failed: Code=%d, Header=%v", res.StatusCode, res.Headers)
 	}
@@ -455,7 +468,8 @@ func TestRouterNotFound(t *testing.T) {
 	router = New()
 	router.GET("/a", handlerFunc)
 	req = newRequest("GET", "/")
-	res = router.ServeEvent(context.Background(), req)
+	res, err = router.ServeEvent(context.Background(), req)
+	assert.NoError(t, err)
 	if !(res.StatusCode == http.StatusNotFound) {
 		t.Errorf("NotFound handling route / failed: Code=%d", res.StatusCode)
 	}
@@ -464,9 +478,9 @@ func TestRouterNotFound(t *testing.T) {
 func TestRouterPanicHandler(t *testing.T) {
 	panicHandled := false
 
-	panicFunc := func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+	panicFunc := func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 		panic("oops!")
-		return nil
+		return nil, nil
 	}
 
 	router := New()
@@ -493,9 +507,9 @@ func TestRouterPanicHandler(t *testing.T) {
 
 func TestRouterLookup(t *testing.T) {
 	routed := false
-	wantedFunc := func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+	wantedFunc := func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 		routed = true
-		return nil
+		return nil, nil
 	}
 
 	wantParams := Params{Param{"name", "gopher"}}
