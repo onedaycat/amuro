@@ -2,7 +2,6 @@ package apigateway
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -239,7 +238,6 @@ func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxy
 	path := request.Path
 	if root := r.trees[request.HTTPMethod]; root != nil {
 		if eventFlowHandle, _, tsr := root.getValue(path); eventFlowHandle != nil {
-			fmt.Println(eventFlowHandle)
 			return r.Run(ctx, request, eventFlowHandle)
 		} else if request.HTTPMethod != "CONNECT" && path != "/" {
 			code := http.StatusMovedPermanently
