@@ -116,7 +116,7 @@ func (r *Router) Handle(method, path string, handler EventHandler, options ...Op
 
 func (r *Router) MainHandler(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	response, err := r.ServeEvent(ctx, &request)
-	if response.StatusCode >= 400 && r.OnError != nil && err != nil {
+	if err != nil && r.OnError != nil {
 		r.OnError(ctx, &request, *response, err)
 	}
 
