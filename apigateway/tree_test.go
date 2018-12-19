@@ -26,7 +26,7 @@ var fakeHandlerValue string
 
 func fakeHandler(val string) *event {
 	return &event{
-		eventHandler: func(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+		eventHandler: func(ctx context.Context, request *events.APIGatewayProxyRequest) *HttpResponseAndError {
 			fakeHandlerValue = val
 			return nil
 		},

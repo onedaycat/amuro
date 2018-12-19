@@ -2,6 +2,7 @@ package apigateway
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -9,7 +10,7 @@ import (
 )
 
 type PanicHandlerFunc func(context.Context, *events.APIGatewayProxyRequest, interface{})
-type ErrorHandlerFunc func(context.Context, *events.APIGatewayProxyRequest, events.APIGatewayProxyResponse)
+type ErrorHandlerFunc func(context.Context, *events.APIGatewayProxyRequest, events.APIGatewayProxyResponse, error)
 
 type Param struct {
 	Key   string
@@ -116,11 +117,21 @@ func (r *Router) Handle(method, path string, handler EventHandler, options ...Op
 
 func (r *Router) MainHandler(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	response := r.ServeEvent(ctx, &request)
-	if response.StatusCode >= 400 && r.OnError != nil {
-		r.OnError(ctx, &request, *response)
+	if response == nil {
+		httpInternalError := events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError, Body: "service not implment return data"}
+
+		if r.OnError != nil {
+			r.OnError(ctx, &request, httpInternalError, errors.InternalError("handler_error", "handler return nil response"))
+		}
+
+		return httpInternalError, nil
 	}
 
-	return *response, nil
+	if response.Error != nil && r.OnError != nil {
+		r.OnError(ctx, &request, *response.HttpResponse, response.Error)
+	}
+
+	return *response.HttpResponse, nil
 }
 
 func (r *Router) recv(ctx context.Context, request *events.APIGatewayProxyRequest) {
@@ -199,27 +210,28 @@ func (r *Router) runPostHandler(ctx context.Context, request *events.APIGatewayP
 	}
 }
 
-func (r *Router) Run(ctx context.Context, request *events.APIGatewayProxyRequest, option *event) *events.APIGatewayProxyResponse {
+func (r *Router) Run(ctx context.Context, request *events.APIGatewayProxyRequest, option *event) *HttpResponseAndError {
 	if option != nil {
 		r.runPreHandler(ctx, request, r.preHandlers)
 		r.runPreHandler(ctx, request, option.preHandlers)
 
 		response := option.eventHandler(ctx, request)
 
-		r.runPostHandler(ctx, request, response, option.postHandlers)
-		r.runPostHandler(ctx, request, response, r.postHandlers)
+		r.runPostHandler(ctx, request, response.HttpResponse, option.postHandlers)
+		r.runPostHandler(ctx, request, response.HttpResponse, r.postHandlers)
 
 		return response
 	}
 
+	err := errors.InternalErrorf("HANDLE_NOT_FOUND", "Not found handle on path %s", request.Path)
 	response := NewResponse()
 	response.StatusCode = http.StatusNotFound
-	response.Body = errors.InternalErrorf("HANDLE_NOT_FOUND", "Not found handle on path %s", request.Path).Error()
+	response.Body = err.Error()
 
-	return response
+	return &HttpResponseAndError{HttpResponse: response, Error: err}
 }
 
-func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
+func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxyRequest) *HttpResponseAndError {
 	if r.OnPanic != nil {
 		defer r.recv(ctx, request)
 	}
@@ -227,6 +239,7 @@ func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxy
 	path := request.Path
 	if root := r.trees[request.HTTPMethod]; root != nil {
 		if eventFlowHandle, _, tsr := root.getValue(path); eventFlowHandle != nil {
+			fmt.Println(eventFlowHandle)
 			return r.Run(ctx, request, eventFlowHandle)
 		} else if request.HTTPMethod != "CONNECT" && path != "/" {
 			code := http.StatusMovedPermanently
@@ -262,21 +275,21 @@ func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxy
 		if allow := r.allowed(path, request.HTTPMethod); len(allow) > 0 {
 			response.Headers["Allow"] = allow
 			response.StatusCode = http.StatusOK
-			return response
+			return &HttpResponseAndError{HttpResponse: response, Error: nil}
 		}
 	} else {
 		if r.HandleMethodNotAllowed {
 			if allow := r.allowed(path, request.HTTPMethod); len(allow) > 0 {
 				if r.MethodNotAllowed != nil {
 					response := r.MethodNotAllowed(ctx, request)
-					response.Headers["Allow"] = allow
+					response.HttpResponse.Headers["Allow"] = allow
 					return response
 				}
 
 				response := HTTPError(ctx, "Method Not Allowed", http.StatusMethodNotAllowed)
 				response.Headers["Allow"] = allow
 
-				return response
+				return &HttpResponseAndError{HttpResponse: response, Error: nil}
 			}
 		}
 	}
@@ -285,5 +298,5 @@ func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxy
 		return r.PathNotFound(ctx, request)
 	}
 
-	return NotFound(ctx)
+	return &HttpResponseAndError{HttpResponse: NotFound(ctx), Error: nil}
 }
