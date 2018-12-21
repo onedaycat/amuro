@@ -2,6 +2,8 @@ package apigateway
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
 
 	"github.com/aws/aws-lambda-go/events"
 )
@@ -51,4 +53,21 @@ func NewResponse() *events.APIGatewayProxyResponse {
 	return &events.APIGatewayProxyResponse{
 		Headers: map[string]string{},
 	}
+}
+
+func NewSuccessResponse(body interface{}) (*events.APIGatewayProxyResponse, error) {
+	var jsonString string
+	if body != nil {
+		jsonByte, err := json.Marshal(body)
+		if err != nil {
+			return ErrorMarshalJSONResponse(), err
+		}
+		jsonString = string(jsonByte)
+	}
+
+	return &events.APIGatewayProxyResponse{
+		Headers:    map[string]string{},
+		StatusCode: http.StatusOK,
+		Body:       jsonString,
+	}, nil
 }
