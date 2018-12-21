@@ -62,6 +62,7 @@ func NewSuccessResponse(body interface{}) (*events.APIGatewayProxyResponse, erro
 		if err != nil {
 			return ErrorMarshalJSONResponse(), err
 		}
+
 		jsonString = string(jsonByte)
 	}
 

@@ -25,3 +25,19 @@ func TestNewSuccessResponse(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, expectedBodyJSONString, resp.Body)
 }
+
+func TestNewSuccessResponseWithNilData(t *testing.T) {
+	expectedBodyJSONString := ``
+
+	resp, err := NewSuccessResponse(nil)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, expectedBodyJSONString, resp.Body)
+}
+
+func TestNewSuccessResponseError(t *testing.T) {
+	resp, err := NewSuccessResponse(func() {})
+	assert.Error(t, err)
+	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+	assert.Equal(t, "3001: Unable marshal json", resp.Body)
+}

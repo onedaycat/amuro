@@ -7,7 +7,7 @@ import (
 
 var (
 	ErrorUnmarshalJSON = errors.BadRequest("3000", "Unable unmarshal json")
-	ErrorMarshalJSON   = errors.BadRequest("3001", "Unable marshal json")
+	ErrorMarshalJSON   = errors.InternalError("3001", "Unable marshal json")
 )
 
 func ErrorUnmarshalJSONResponse() *events.APIGatewayProxyResponse {
