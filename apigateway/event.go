@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/onedaycat/errors"
 )
 
 type EventHandler func(ctx context.Context, request *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error)
@@ -71,4 +72,13 @@ func NewSuccessResponse(body interface{}) (*events.APIGatewayProxyResponse, erro
 		StatusCode: http.StatusOK,
 		Body:       jsonString,
 	}, nil
+}
+
+func NewErrorResponse(err error) *events.APIGatewayProxyResponse {
+	appError, _ := err.(*errors.AppError)
+
+	return &events.APIGatewayProxyResponse{
+		StatusCode: appError.Status,
+		Body:       TransfrormErrorToJsonResponse(appError),
+	}
 }
