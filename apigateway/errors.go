@@ -7,7 +7,7 @@ import (
 	"github.com/onedaycat/errors"
 )
 
-type ErrorJsonResponse struct {
+type errorJsonResponse struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
 }
@@ -17,21 +17,21 @@ var (
 	ErrorMarshalJSON   = errors.InternalError("3001", "Unable marshal json")
 )
 
-func TransfrormErrorToJsonResponse(err error) string {
+func transfrormErrorToJsonResponse(err error) string {
 	if err == nil {
 		return ""
 	}
 
-	var errorResponse *ErrorJsonResponse
+	var errorResponse *errorJsonResponse
 
 	appErr, ok := err.(*errors.AppError)
 	if !ok {
-		errorResponse = &ErrorJsonResponse{
+		errorResponse = &errorJsonResponse{
 			Code:    "UNKNOWN_CODE",
 			Message: err.Error(),
 		}
 	} else {
-		errorResponse = &ErrorJsonResponse{
+		errorResponse = &errorJsonResponse{
 			Code:    appErr.Code,
 			Message: appErr.Message,
 		}
@@ -44,13 +44,13 @@ func TransfrormErrorToJsonResponse(err error) string {
 func ErrorUnmarshalJSONResponse() *events.APIGatewayProxyResponse {
 	return &events.APIGatewayProxyResponse{
 		StatusCode: ErrorUnmarshalJSON.Status,
-		Body:       TransfrormErrorToJsonResponse(ErrorUnmarshalJSON),
+		Body:       transfrormErrorToJsonResponse(ErrorUnmarshalJSON),
 	}
 }
 
 func ErrorMarshalJSONResponse() *events.APIGatewayProxyResponse {
 	return &events.APIGatewayProxyResponse{
 		StatusCode: ErrorMarshalJSON.Status,
-		Body:       TransfrormErrorToJsonResponse(ErrorMarshalJSON),
+		Body:       transfrormErrorToJsonResponse(ErrorMarshalJSON),
 	}
 }

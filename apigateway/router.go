@@ -215,7 +215,7 @@ func (r *Router) Run(ctx context.Context, request *events.APIGatewayProxyRequest
 	err := errors.InternalErrorf("HANDLE_NOT_FOUND", "Not found handle on path %s", request.Path)
 	response := NewResponse()
 	response.StatusCode = http.StatusNotFound
-	response.Body = TransfrormErrorToJsonResponse(err)
+	response.Body = transfrormErrorToJsonResponse(err)
 
 	return response, nil
 }

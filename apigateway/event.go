@@ -75,10 +75,16 @@ func NewSuccessResponse(body interface{}) (*events.APIGatewayProxyResponse, erro
 }
 
 func NewErrorResponse(err error) *events.APIGatewayProxyResponse {
-	appError, _ := err.(*errors.AppError)
+	appError, ok := err.(*errors.AppError)
+	if !ok {
+		return &events.APIGatewayProxyResponse{
+			StatusCode: http.StatusInternalServerError,
+			Body:       transfrormErrorToJsonResponse(err),
+		}
+	}
 
 	return &events.APIGatewayProxyResponse{
 		StatusCode: appError.Status,
-		Body:       TransfrormErrorToJsonResponse(appError),
+		Body:       transfrormErrorToJsonResponse(appError),
 	}
 }
