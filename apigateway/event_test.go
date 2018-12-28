@@ -39,5 +39,5 @@ func TestNewSuccessResponseError(t *testing.T) {
 	resp, err := NewSuccessResponse(func() {})
 	assert.Error(t, err)
 	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
-	assert.Equal(t, "3001: Unable marshal json", resp.Body)
+	assert.Equal(t, `{"code":"3001","message":"Unable marshal json"}`, resp.Body)
 }
