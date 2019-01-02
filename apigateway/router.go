@@ -241,6 +241,12 @@ func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxy
 				} else {
 					request.Path = path + "/"
 				}
+
+				// if path have handle not redirect
+				if eventFlowHandle, _, _ = root.getValue(request.Path); eventFlowHandle != nil {
+					return r.Run(ctx, request, eventFlowHandle)
+				}
+
 				return Redirect(ctx, request, request.Path, code), nil
 			}
 
@@ -251,6 +257,12 @@ func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxy
 				)
 				if found {
 					request.Path = string(fixedPath)
+
+					// if path have handle not redirect
+					if eventFlowHandle, _, _ = root.getValue(request.Path); eventFlowHandle != nil {
+						return r.Run(ctx, request, eventFlowHandle)
+					}
+
 					return Redirect(ctx, request, request.Path, code), nil
 				}
 			}
