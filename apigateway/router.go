@@ -230,7 +230,7 @@ func (r *Router) ServeEvent(ctx context.Context, request *events.APIGatewayProxy
 		if eventFlowHandle, _, tsr := root.getValue(path); eventFlowHandle != nil {
 			return r.Run(ctx, request, eventFlowHandle)
 		} else if request.HTTPMethod != "CONNECT" && path != "/" {
-			code := http.StatusFound
+			code := http.StatusMovedPermanently
 			if request.HTTPMethod != "GET" {
 				code = 307
 			}
