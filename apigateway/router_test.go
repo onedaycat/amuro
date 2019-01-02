@@ -420,15 +420,15 @@ func TestRouterNotFound(t *testing.T) {
 		code     int
 		location string
 	}{
-		{"/path/", http.StatusMovedPermanently, "/path"},   // TSR -/
-		{"/dir", http.StatusMovedPermanently, "/dir/"},     // TSR +/
-		{"", http.StatusMovedPermanently, "/"},             // TSR +/
-		{"/PATH", http.StatusMovedPermanently, "/path"},    // Fixed Case
-		{"/DIR/", http.StatusMovedPermanently, "/dir/"},    // Fixed Case
-		{"/PATH/", http.StatusMovedPermanently, "/path"},   // Fixed Case -/
-		{"/DIR", http.StatusMovedPermanently, "/dir/"},     // Fixed Case +/
-		{"/../path", http.StatusMovedPermanently, "/path"}, // CleanPath
-		{"/nope", http.StatusNotFound, ""},                 // NotFound
+		{"/path/", http.StatusFound, "/path"},   // TSR -/
+		{"/dir", http.StatusFound, "/dir/"},     // TSR +/
+		{"", http.StatusFound, "/"},             // TSR +/
+		{"/PATH", http.StatusFound, "/path"},    // Fixed Case
+		{"/DIR/", http.StatusFound, "/dir/"},    // Fixed Case
+		{"/PATH/", http.StatusFound, "/path"},   // Fixed Case -/
+		{"/DIR", http.StatusFound, "/dir/"},     // Fixed Case +/
+		{"/../path", http.StatusFound, "/path"}, // CleanPath
+		{"/nope", http.StatusNotFound, ""},      // NotFound
 	}
 	for _, tr := range testRoutes {
 		req := newRequest("GET", tr.route)
