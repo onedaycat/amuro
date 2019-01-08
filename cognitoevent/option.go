@@ -19,3 +19,15 @@ func newOption(opts ...Option) *option {
 
 	return o
 }
+
+func WithPreHandlers(preHandlers ...PreHandler) Option {
+	return func(o *option) {
+		o.preHandlers = preHandlers
+	}
+}
+
+func WithPostHandlers(postHandlers ...PostHandler) Option {
+	return func(o *option) {
+		o.postHandlers = postHandlers
+	}
+}
