@@ -1,5 +1,5 @@
 # Amuro/CognitoEvent
-amuro/cognitoevent is lambda handler receive cognito event
+cognitoevent is lambda handler receive cognito event
 
 ## Usage
 ```
@@ -70,7 +70,7 @@ func main() {
 
 
 ### Use Middleware in Global Level
-amuro support global middleware (PreHandler, PostHandler)
+cognitoevent support global middleware (PreHandler, PostHandler)
 
 ```
 package main
@@ -110,7 +110,7 @@ func main() {
 
 
 ## Custom Handler
-amuro has support custom error (ErrorHandler)
+cognitoevent has support custom error (ErrorHandler)
 
 ```
 package main
