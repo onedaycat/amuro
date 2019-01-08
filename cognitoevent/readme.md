@@ -1,5 +1,5 @@
 # Amuro/CognitoEvent
-cognitoevent is lambda handler receive cognito event
+cognitoevent is lambda handler receive cognito event (PostConfirmation, PreSignup)
 
 ## Usage
 ```
