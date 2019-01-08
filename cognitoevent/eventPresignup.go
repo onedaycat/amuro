@@ -16,8 +16,8 @@ type CognitoPreSignupMainHandler struct {
 	handler      CognitoPreSignupEventHandler
 }
 
-func NewCognitoPreSignupMainHandler(handler CognitoPreSignupEventHandler, preHandlers []CognitoPreSignupPreHandler, postHandlers []CognitoPreSignupPostHandler) *CognitoPreSignupMainHandler {
-	return &CognitoPreSignupMainHandler{
+func (e *EventManager) RegisterPreSignupHandlers(handler CognitoPreSignupEventHandler, preHandlers []CognitoPreSignupPreHandler, postHandlers []CognitoPreSignupPostHandler) {
+	e.preSignupMainHandler = &CognitoPreSignupMainHandler{
 		handler:      handler,
 		preHandlers:  preHandlers,
 		postHandlers: postHandlers,

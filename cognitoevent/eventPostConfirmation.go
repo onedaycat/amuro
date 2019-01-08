@@ -16,10 +16,18 @@ type CognitoPostConfirmationMainHandler struct {
 	handler      CognitoPostConfirmationEventHandler
 }
 
-func NewCognitoPostConfirmationMainHandler(handler CognitoPostConfirmationEventHandler, preHandlers []CognitoPostConfirmationPreHandler, postHandlers []CognitoPostConfirmationPostHandler) *CognitoPostConfirmationMainHandler {
-	return &CognitoPostConfirmationMainHandler{
+func (e *EventManager) RegisterPostConfirmationHandlers(handler CognitoPostConfirmationEventHandler, preHandlers []CognitoPostConfirmationPreHandler, postHandlers []CognitoPostConfirmationPostHandler) {
+	e.postConfirmationMainHandler = &CognitoPostConfirmationMainHandler{
 		handler:      handler,
 		preHandlers:  preHandlers,
 		postHandlers: postHandlers,
 	}
 }
+
+// func NewCognitoPostConfirmationMainHandler(handler CognitoPostConfirmationEventHandler, preHandlers []CognitoPostConfirmationPreHandler, postHandlers []CognitoPostConfirmationPostHandler) *CognitoPostConfirmationMainHandler {
+// 	return &CognitoPostConfirmationMainHandler{
+// 		handler:      handler,
+// 		preHandlers:  preHandlers,
+// 		postHandlers: postHandlers,
+// 	}
+// }

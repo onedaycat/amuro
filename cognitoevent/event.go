@@ -9,40 +9,47 @@ import (
 )
 
 type ErrorHandler func(ctx context.Context, event interface{}, err error)
+type PreHandler func(ctx context.Context, event interface{})
+type PostHandler func(ctx context.Context, event interface{}, err error)
 
 type EventManager struct {
-	postConfirmationPreHandlers  []CognitoPostConfirmationPreHandler
-	postConfirmationPostHandlers []CognitoPostConfirmationPostHandler
-	postConfirmationMainHandler  *CognitoPostConfirmationMainHandler
+	preHandlers  []PreHandler
+	postHandlers []PostHandler
 
-	preSignupPreHandlers  []CognitoPreSignupPreHandler
-	preSignupPostHandlers []CognitoPreSignupPostHandler
-	preSignupMainHandler  *CognitoPreSignupMainHandler
+	postConfirmationMainHandler *CognitoPostConfirmationMainHandler
+	preSignupMainHandler        *CognitoPreSignupMainHandler
 
 	OnError ErrorHandler
 }
 
-func NewEventManager() *EventManager {
-	return &EventManager{
-		postConfirmationPreHandlers:  []CognitoPostConfirmationPreHandler{},
-		postConfirmationPostHandlers: []CognitoPostConfirmationPostHandler{},
-		postConfirmationMainHandler:  nil,
-		preSignupPreHandlers:         []CognitoPreSignupPreHandler{},
-		preSignupPostHandlers:        []CognitoPreSignupPostHandler{},
-		preSignupMainHandler:         nil,
+func WithPreHandlers(preHandlers ...PreHandler) Option {
+	return func(o *option) {
+		o.preHandlers = preHandlers
 	}
 }
 
-func (e *EventManager) RegisterPostConfirmationHandlers(mainHandler *CognitoPostConfirmationMainHandler, preHandlers []CognitoPostConfirmationPreHandler, postHandlers []CognitoPostConfirmationPostHandler) {
-	e.postConfirmationMainHandler = mainHandler
-	e.postConfirmationPreHandlers = preHandlers
-	e.postConfirmationPostHandlers = postHandlers
+func WithPostHandlers(postHandlers ...PostHandler) Option {
+	return func(o *option) {
+		o.postHandlers = postHandlers
+	}
 }
 
-func (e *EventManager) RegisterPreSignupHandlers(mainHandler *CognitoPreSignupMainHandler, preHandlers []CognitoPreSignupPreHandler, postHandlers []CognitoPreSignupPostHandler) {
-	e.preSignupMainHandler = mainHandler
-	e.preSignupPreHandlers = preHandlers
-	e.preSignupPostHandlers = postHandlers
+func NewEventManager(options ...Option) *EventManager {
+	opts := newOption(options...)
+	eventManager := &EventManager{
+		preHandlers:  []PreHandler{},
+		postHandlers: []PostHandler{},
+	}
+
+	if len(opts.preHandlers) > 0 {
+		eventManager.preHandlers = opts.preHandlers
+	}
+
+	if len(opts.postHandlers) > 0 {
+		eventManager.postHandlers = opts.postHandlers
+	}
+
+	return eventManager
 }
 
 func (e *EventManager) runPostConfirmationPreHandler(ctx context.Context, event events.CognitoEventUserPoolsPostConfirmation, handlers []CognitoPostConfirmationPreHandler) {
@@ -69,26 +76,38 @@ func (e *EventManager) runPreSignupPostHandler(ctx context.Context, event events
 	}
 }
 
+func (e *EventManager) runGlobalPreHandler(ctx context.Context, event interface{}, handlers []PreHandler) {
+	for _, handler := range handlers {
+		handler(ctx, event)
+	}
+}
+
+func (e *EventManager) runGlobalPostHandler(ctx context.Context, event interface{}, handlerErr error, handlers []PostHandler) {
+	for _, handler := range handlers {
+		handler(ctx, event, handlerErr)
+	}
+}
+
 func (e *EventManager) runPostConfirmation(ctx context.Context, event events.CognitoEventUserPoolsPostConfirmation) (events.CognitoEventUserPoolsPostConfirmation, error) {
-	e.runPostConfirmationPreHandler(ctx, event, e.postConfirmationPreHandlers)
+	e.runGlobalPreHandler(ctx, event, e.preHandlers)
 	e.runPostConfirmationPreHandler(ctx, event, e.postConfirmationMainHandler.preHandlers)
 
 	respEvent, err := e.postConfirmationMainHandler.handler(ctx, event)
 
 	e.runPostConfirmationPostHandler(ctx, event, err, e.postConfirmationMainHandler.postHandlers)
-	e.runPostConfirmationPostHandler(ctx, event, err, e.postConfirmationPostHandlers)
+	e.runGlobalPostHandler(ctx, event, err, e.postHandlers)
 
 	return respEvent, err
 }
 
 func (e *EventManager) runPreSingup(ctx context.Context, event events.CognitoEventUserPoolsPreSignup) (events.CognitoEventUserPoolsPreSignup, error) {
-	e.runPreSignupPreHandler(ctx, event, e.preSignupPreHandlers)
+	e.runGlobalPreHandler(ctx, event, e.preHandlers)
 	e.runPreSignupPreHandler(ctx, event, e.preSignupMainHandler.preHandlers)
 
 	respEvent, err := e.preSignupMainHandler.handler(ctx, event)
 
 	e.runPreSignupPostHandler(ctx, event, err, e.preSignupMainHandler.postHandlers)
-	e.runPreSignupPostHandler(ctx, event, err, e.preSignupPostHandlers)
+	e.runGlobalPostHandler(ctx, event, err, e.postHandlers)
 
 	return respEvent, err
 }
