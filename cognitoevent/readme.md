@@ -128,6 +128,7 @@ func handler(ctx context.Context, event events.CognitoEventUserPoolsPostConfirma
 	fmt.Printf("PostConfirmation for user: %s\n", event.UserName)
 	return event, nil
 }
+
 func customError(ctx context.Context, event interface{}, err error) {
 	fmt.Println(err)
 }
