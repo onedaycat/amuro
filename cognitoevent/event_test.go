@@ -16,7 +16,7 @@ func TestHandlerPostConfirmation(t *testing.T) {
 	eventManager.RegisterPostConfirmationHandlers(func(ctx context.Context, event events.CognitoEventUserPoolsPostConfirmation) (events.CognitoEventUserPoolsPostConfirmation, error) {
 		confirmationHandlerCheck = true
 		return event, nil
-	}, nil, nil)
+	})
 
 	requestEvent := events.CognitoEventUserPoolsPostConfirmation{}
 	responseEvent, err := eventManager.MainHandler(context.Background(), requestEvent)
@@ -32,7 +32,7 @@ func TestHandlerPreSignup(t *testing.T) {
 	eventManager.RegisterPreSignupHandlers(func(ctx context.Context, event events.CognitoEventUserPoolsPreSignup) (events.CognitoEventUserPoolsPreSignup, error) {
 		preSignupHandlerCheck = true
 		return event, nil
-	}, nil, nil)
+	})
 
 	requestEvent := events.CognitoEventUserPoolsPreSignup{}
 	responseEvent, err := eventManager.MainHandler(context.Background(), requestEvent)
@@ -47,7 +47,7 @@ func TestCustomErrorHandle(t *testing.T) {
 	eventManager := NewEventManager()
 	eventManager.RegisterPreSignupHandlers(func(ctx context.Context, event events.CognitoEventUserPoolsPreSignup) (events.CognitoEventUserPoolsPreSignup, error) {
 		return event, errors.InternalError("test_custom_error_handle", "test")
-	}, nil, nil)
+	})
 
 	eventManager.OnError = func(ctx context.Context, event interface{}, err error) {
 		require.Equal(t, events.CognitoEventUserPoolsPreSignup{}, event.(events.CognitoEventUserPoolsPreSignup))
@@ -65,24 +65,24 @@ func TestCustomErrorHandle(t *testing.T) {
 func TestFlowPostConfirmationHandlers(t *testing.T) {
 	var mainHandlerCheck, mainPreHanlderCheck, mainPostHandlerCheck, globalPreHandlerCheck, globalPostHandlerCheck bool
 
-	eventManager := NewEventManager(
-		WithPreHandlers(func(ctx context.Context, event interface{}) { globalPreHandlerCheck = true }),
-		WithPostHandlers(func(ctx context.Context, event interface{}, err error) { globalPostHandlerCheck = true }),
-	)
+	eventManager := NewEventManager()
+
+	eventManager.UsePreHandler(func(ctx context.Context, event interface{}) { globalPreHandlerCheck = true })
+	eventManager.UsePostHandler(func(ctx context.Context, event interface{}, err error) { globalPostHandlerCheck = true })
+
 	eventManager.RegisterPostConfirmationHandlers(
 		func(ctx context.Context, event events.CognitoEventUserPoolsPostConfirmation) (events.CognitoEventUserPoolsPostConfirmation, error) {
 			mainHandlerCheck = true
 			return event, nil
-		}, []CognitoPostConfirmationPreHandler{
-			func(ctx context.Context, event events.CognitoEventUserPoolsPostConfirmation) {
-				mainPreHanlderCheck = true
-			},
 		},
-		[]CognitoPostConfirmationPostHandler{
+		WithPostConfirmationPreHandlers(func(ctx context.Context, event events.CognitoEventUserPoolsPostConfirmation) {
+			mainPreHanlderCheck = true
+		}),
+		WithPostConfirmationPostHandlers(
 			func(ctx context.Context, event events.CognitoEventUserPoolsPostConfirmation, err error) {
 				mainPostHandlerCheck = true
 			},
-		},
+		),
 	)
 
 	requestEvent := events.CognitoEventUserPoolsPostConfirmation{}
@@ -99,24 +99,25 @@ func TestFlowPostConfirmationHandlers(t *testing.T) {
 func TestFlowPreSignupHandlers(t *testing.T) {
 	var mainHandlerCheck, mainPreHanlderCheck, mainPostHandlerCheck, globalPreHandlerCheck, globalPostHandlerCheck bool
 
-	eventManager := NewEventManager(
-		WithPreHandlers(func(ctx context.Context, event interface{}) { globalPreHandlerCheck = true }),
-		WithPostHandlers(func(ctx context.Context, event interface{}, err error) { globalPostHandlerCheck = true }),
-	)
+	eventManager := NewEventManager()
+	eventManager.UsePreHandler(func(ctx context.Context, event interface{}) { globalPreHandlerCheck = true })
+	eventManager.UsePostHandler(func(ctx context.Context, event interface{}, err error) { globalPostHandlerCheck = true })
+
 	eventManager.RegisterPreSignupHandlers(
 		func(ctx context.Context, event events.CognitoEventUserPoolsPreSignup) (events.CognitoEventUserPoolsPreSignup, error) {
 			mainHandlerCheck = true
 			return event, nil
-		}, []CognitoPreSignupPreHandler{
+		},
+		WithPreSignupPreHandlers(
 			func(ctx context.Context, event events.CognitoEventUserPoolsPreSignup) {
 				mainPreHanlderCheck = true
 			},
-		},
-		[]CognitoPreSignupPostHandler{
+		),
+		WithPreSignupPostHandlers(
 			func(ctx context.Context, event events.CognitoEventUserPoolsPreSignup, err error) {
 				mainPostHandlerCheck = true
 			},
-		},
+		),
 	)
 
 	requestEvent := events.CognitoEventUserPoolsPreSignup{}
@@ -137,11 +138,11 @@ func TestFlowMultiTypeHandlers(t *testing.T) {
 	eventManager.RegisterPreSignupHandlers(func(ctx context.Context, event events.CognitoEventUserPoolsPreSignup) (events.CognitoEventUserPoolsPreSignup, error) {
 		preSignupHandlerCheck = true
 		return event, nil
-	}, nil, nil)
+	})
 	eventManager.RegisterPostConfirmationHandlers(func(ctx context.Context, event events.CognitoEventUserPoolsPostConfirmation) (events.CognitoEventUserPoolsPostConfirmation, error) {
 		postConfirmationHandlerCheck = true
 		return event, nil
-	}, nil, nil)
+	})
 
 	requestEvent := events.CognitoEventUserPoolsPreSignup{}
 	responseEvent, err := eventManager.MainHandler(context.Background(), requestEvent)

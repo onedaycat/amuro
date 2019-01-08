@@ -22,22 +22,24 @@ type EventManager struct {
 	OnError ErrorHandler
 }
 
-func NewEventManager(options ...Option) *EventManager {
-	opts := newOption(options...)
-	eventManager := &EventManager{
-		preHandlers:  []PreHandler{},
-		postHandlers: []PostHandler{},
+func NewEventManager() *EventManager {
+	return &EventManager{}
+}
+
+func (e *EventManager) UsePreHandler(handlers ...PreHandler) {
+	if len(handlers) == 0 {
+		return
 	}
 
-	if len(opts.preHandlers) > 0 {
-		eventManager.preHandlers = opts.preHandlers
+	e.preHandlers = handlers
+}
+
+func (e *EventManager) UsePostHandler(handlers ...PostHandler) {
+	if len(handlers) == 0 {
+		return
 	}
 
-	if len(opts.postHandlers) > 0 {
-		eventManager.postHandlers = opts.postHandlers
-	}
-
-	return eventManager
+	e.postHandlers = handlers
 }
 
 func (e *EventManager) runPostConfirmationPreHandler(ctx context.Context, event events.CognitoEventUserPoolsPostConfirmation, handlers []CognitoPostConfirmationPreHandler) {
