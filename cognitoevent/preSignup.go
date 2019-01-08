@@ -16,43 +16,27 @@ type CognitoPreSignupMainHandler struct {
 	handler      CognitoPreSignupEventHandler
 }
 
-func (e *EventManager) RegisterPreSignupHandlers(handler CognitoPreSignupEventHandler, options ...OptionPreSignup) {
-	opts := newOptionPreSignup(options...)
-
-	e.preSignupMainHandler = &CognitoPreSignupMainHandler{
-		handler: handler,
-	}
-
-	if len(opts.preHandlers) > 0 {
-		e.preSignupMainHandler.preHandlers = opts.preHandlers
-	}
-
-	if len(opts.postHandlers) > 0 {
-		e.preSignupMainHandler.postHandlers = opts.postHandlers
-	}
-}
-
-func WithPreSignupPreHandlers(handlers ...CognitoPreSignupPreHandler) OptionPreSignup {
-	return func(o *optionPreSignup) {
+func WithPreSignupPreHandlers(handlers ...CognitoPreSignupPreHandler) PreSignupOption {
+	return func(o *preSignupOption) {
 		o.preHandlers = handlers
 	}
 }
 
-func WithPreSignupPostHandlers(handlers ...CognitoPreSignupPostHandler) OptionPreSignup {
-	return func(o *optionPreSignup) {
+func WithPreSignupPostHandlers(handlers ...CognitoPreSignupPostHandler) PreSignupOption {
+	return func(o *preSignupOption) {
 		o.postHandlers = handlers
 	}
 }
 
-type OptionPreSignup func(o *optionPreSignup)
+type PreSignupOption func(o *preSignupOption)
 
-type optionPreSignup struct {
+type preSignupOption struct {
 	preHandlers  []CognitoPreSignupPreHandler
 	postHandlers []CognitoPreSignupPostHandler
 }
 
-func newOptionPreSignup(opts ...OptionPreSignup) *optionPreSignup {
-	o := &optionPreSignup{}
+func newPreSignupOption(opts ...PreSignupOption) *preSignupOption {
+	o := &preSignupOption{}
 	if opts == nil {
 		return o
 	}

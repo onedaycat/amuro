@@ -21,7 +21,7 @@ func handler(ctx context.Context, event events.CognitoEventUserPoolsPostConfirma
 
 func main() {
 	eventManager := cognitoevent.NewEventManager()
-	eventManager.RegisterPostConfirmationHandlers(handler, nil, nil)
+	eventManager.RegisterPostConfirmationHandlers(handler)
 
 	lambda.Start(eventManager.MainHandler)
 }
@@ -57,12 +57,12 @@ func postHandler(ctx context.Context, event events.CognitoEventUserPoolsPostConf
 }
 
 func main() {
-	preHandlers := []cognitoevent.CognitoPostConfirmationPreHandler{preHandler}
-	postHandlers := []cognitoevent.CognitoPostConfirmationPostHandler{postHandler}
-
 	eventManager := cognitoevent.NewEventManager()
-	eventManager.RegisterPostConfirmationHandlers(handler, preHandlers, postHandlers)
-
+	eventManager.RegisterPostConfirmationHandlers(
+		handler,
+		cognitoevent.WithPostConfirmationPreHandlers(preHandler),
+		cognitoevent.WithPostConfirmationPostHandlers(postHandler),
+	)
 	lambda.Start(eventManager.MainHandler)
 }
 
@@ -99,8 +99,10 @@ func postHandler(ctx context.Context, event interface{}, err error) {
 }
 
 func main() {
-	eventManager := cognitoevent.NewEventManager(cognitoevent.WithPostHandlers(postHandler), cognitoevent.WithPreHandlers(preHandler))
-	eventManager.RegisterPostConfirmationHandlers(handler, nil, nil)
+	eventManager := cognitoevent.NewEventManager()
+	eventManager.UsePreHandler(preHandler)
+	eventManager.UsePostHandler(postHandler)
+	eventManager.RegisterPostConfirmationHandlers(handler)
 
 	lambda.Start(eventManager.MainHandler)
 }
@@ -136,7 +138,7 @@ func customError(ctx context.Context, event interface{}, err error) {
 func main() {
 	eventManager := cognitoevent.NewEventManager()
 	eventManager.OnError = customError
-	eventManager.RegisterPostConfirmationHandlers(handler, nil, nil)
+	eventManager.RegisterPostConfirmationHandlers(handler)
 
 	lambda.Start(eventManager.MainHandler)
 }

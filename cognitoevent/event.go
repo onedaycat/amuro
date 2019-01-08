@@ -26,6 +26,38 @@ func NewEventManager() *EventManager {
 	return &EventManager{}
 }
 
+func (e *EventManager) RegisterPreSignupHandlers(handler CognitoPreSignupEventHandler, options ...PreSignupOption) {
+	opts := newPreSignupOption(options...)
+
+	e.preSignupMainHandler = &CognitoPreSignupMainHandler{
+		handler: handler,
+	}
+
+	if len(opts.preHandlers) > 0 {
+		e.preSignupMainHandler.preHandlers = opts.preHandlers
+	}
+
+	if len(opts.postHandlers) > 0 {
+		e.preSignupMainHandler.postHandlers = opts.postHandlers
+	}
+}
+
+func (e *EventManager) RegisterPostConfirmationHandlers(handler CognitoPostConfirmationEventHandler, options ...PostConfirmationOption) {
+	opts := newPostConfirmationOption(options...)
+
+	e.postConfirmationMainHandler = &CognitoPostConfirmationMainHandler{
+		handler: handler,
+	}
+
+	if len(opts.preHandlers) > 0 {
+		e.postConfirmationMainHandler.preHandlers = opts.preHandlers
+	}
+
+	if len(opts.postHandlers) > 0 {
+		e.postConfirmationMainHandler.postHandlers = opts.postHandlers
+	}
+}
+
 func (e *EventManager) UsePreHandler(handlers ...PreHandler) {
 	if len(handlers) == 0 {
 		return

@@ -16,43 +16,27 @@ type CognitoPostConfirmationMainHandler struct {
 	handler      CognitoPostConfirmationEventHandler
 }
 
-func (e *EventManager) RegisterPostConfirmationHandlers(handler CognitoPostConfirmationEventHandler, options ...OptionPostConfirmation) {
-	opts := newOptionPostConfirmation(options...)
+type PostConfirmationOption func(o *postConfirmationOption)
 
-	e.postConfirmationMainHandler = &CognitoPostConfirmationMainHandler{
-		handler: handler,
-	}
-
-	if len(opts.preHandlers) > 0 {
-		e.postConfirmationMainHandler.preHandlers = opts.preHandlers
-	}
-
-	if len(opts.postHandlers) > 0 {
-		e.postConfirmationMainHandler.postHandlers = opts.postHandlers
-	}
-}
-
-type OptionPostConfirmation func(o *optionPostConfirmation)
-
-type optionPostConfirmation struct {
+type postConfirmationOption struct {
 	preHandlers  []CognitoPostConfirmationPreHandler
 	postHandlers []CognitoPostConfirmationPostHandler
 }
 
-func WithPostConfirmationPreHandlers(handlers ...CognitoPostConfirmationPreHandler) OptionPostConfirmation {
-	return func(o *optionPostConfirmation) {
+func WithPostConfirmationPreHandlers(handlers ...CognitoPostConfirmationPreHandler) PostConfirmationOption {
+	return func(o *postConfirmationOption) {
 		o.preHandlers = handlers
 	}
 }
 
-func WithPostConfirmationPostHandlers(handlers ...CognitoPostConfirmationPostHandler) OptionPostConfirmation {
-	return func(o *optionPostConfirmation) {
+func WithPostConfirmationPostHandlers(handlers ...CognitoPostConfirmationPostHandler) PostConfirmationOption {
+	return func(o *postConfirmationOption) {
 		o.postHandlers = handlers
 	}
 }
 
-func newOptionPostConfirmation(opts ...OptionPostConfirmation) *optionPostConfirmation {
-	o := &optionPostConfirmation{}
+func newPostConfirmationOption(opts ...PostConfirmationOption) *postConfirmationOption {
+	o := &postConfirmationOption{}
 	if opts == nil {
 		return o
 	}
