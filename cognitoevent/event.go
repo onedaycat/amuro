@@ -94,7 +94,7 @@ func (e *EventManager) runPreSingup(ctx context.Context, event events.CognitoEve
 }
 
 func (e *EventManager) MainHandler(ctx context.Context, event interface{}) (interface{}, error) {
-	respEvent, err := e.Run(ctx, event)
+	respEvent, err := e.run(ctx, event)
 	if err != nil && e.OnError != nil {
 		e.OnError(ctx, event, err)
 	}
@@ -102,7 +102,7 @@ func (e *EventManager) MainHandler(ctx context.Context, event interface{}) (inte
 	return respEvent, err
 }
 
-func (e *EventManager) Run(ctx context.Context, event interface{}) (interface{}, error) {
+func (e *EventManager) run(ctx context.Context, event interface{}) (interface{}, error) {
 	switch v := event.(type) {
 	case events.CognitoEventUserPoolsPostConfirmation:
 		return e.runPostConfirmation(ctx, v)
