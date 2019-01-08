@@ -20,6 +20,7 @@ type event struct {
 	postHandlers []PostHandler
 	eventHandler EventHandler
 }
+
 type option struct {
 	preHandlers  []PreHandler
 	postHandlers []PostHandler
