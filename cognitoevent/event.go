@@ -26,10 +26,10 @@ func NewEventManager() *EventManager {
 	return &EventManager{
 		postConfirmationPreHandlers:  []CognitoPostConfirmationPreHandler{},
 		postConfirmationPostHandlers: []CognitoPostConfirmationPostHandler{},
-		postConfirmationMainHandler:  &CognitoPostConfirmationMainHandler{},
+		postConfirmationMainHandler:  nil,
 		preSignupPreHandlers:         []CognitoPreSignupPreHandler{},
 		preSignupPostHandlers:        []CognitoPreSignupPostHandler{},
-		preSignupMainHandler:         &CognitoPreSignupMainHandler{},
+		preSignupMainHandler:         nil,
 	}
 }
 
@@ -105,10 +105,22 @@ func (e *EventManager) MainHandler(ctx context.Context, event interface{}) (inte
 func (e *EventManager) run(ctx context.Context, event interface{}) (interface{}, error) {
 	switch v := event.(type) {
 	case events.CognitoEventUserPoolsPostConfirmation:
+		if e.postConfirmationMainHandler == nil {
+			return notImplementHandlerOnEvent(event)
+		}
+
 		return e.runPostConfirmation(ctx, v)
 	case events.CognitoEventUserPoolsPreSignup:
+		if e.preSignupMainHandler == nil {
+			return notImplementHandlerOnEvent(event)
+		}
+
 		return e.runPreSingup(ctx, v)
 	default:
-		return event, errors.InternalErrorf("HANDLER_NOT_FOUND", "Not found handler on event: %v", reflect.TypeOf(event))
+		return notImplementHandlerOnEvent(event)
 	}
+}
+
+func notImplementHandlerOnEvent(event interface{}) (interface{}, error) {
+	return event, errors.InternalErrorf("HANDLER_NOT_FOUND", "Not found handler on event: %v", reflect.TypeOf(event))
 }

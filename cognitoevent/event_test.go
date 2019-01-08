@@ -182,10 +182,16 @@ func TestFlowMultiTypeHandlers(t *testing.T) {
 
 func TestNotImplmentEvent(t *testing.T) {
 	requestEvent := events.CognitoEventUserPoolsPreTokenGen{}
+	requestEvent2 := events.CognitoEventUserPoolsPostConfirmation{}
 
 	eventManager := NewEventManager()
 	responseEvent, err := eventManager.MainHandler(context.Background(), requestEvent)
 	require.Error(t, err)
 	require.Equal(t, "HANDLER_NOT_FOUND: Not found handler on event: events.CognitoEventUserPoolsPreTokenGen", err.Error())
 	require.Equal(t, requestEvent, responseEvent)
+
+	responseEvent, err = eventManager.MainHandler(context.Background(), requestEvent2)
+	require.Error(t, err)
+	require.Equal(t, "HANDLER_NOT_FOUND: Not found handler on event: events.CognitoEventUserPoolsPostConfirmation", err.Error())
+	require.Equal(t, requestEvent2, responseEvent)
 }
