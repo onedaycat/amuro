@@ -19,7 +19,7 @@ func TestHandlerPostConfirmation(t *testing.T) {
 	})
 
 	requestEvent := events.CognitoEventUserPoolsPostConfirmation{}
-	responseEvent, err := eventManager.MainHandler(context.Background(), requestEvent)
+	responseEvent, err := eventManager.RunPostConfirmation(context.Background(), requestEvent)
 	require.Nil(t, err)
 	require.True(t, confirmationHandlerCheck)
 	require.Equal(t, requestEvent, responseEvent)
@@ -35,7 +35,7 @@ func TestHandlerPreSignup(t *testing.T) {
 	})
 
 	requestEvent := events.CognitoEventUserPoolsPreSignup{}
-	responseEvent, err := eventManager.MainHandler(context.Background(), requestEvent)
+	responseEvent, err := eventManager.RunPreSignup(context.Background(), requestEvent)
 	require.Nil(t, err)
 	require.True(t, preSignupHandlerCheck)
 	require.Equal(t, requestEvent, responseEvent)
@@ -56,19 +56,16 @@ func TestCustomErrorHandle(t *testing.T) {
 
 	requestEvent := events.CognitoEventUserPoolsPreSignup{}
 
-	responseEvent, err := eventManager.MainHandler(context.Background(), requestEvent)
+	responseEvent, err := eventManager.RunPreSignup(context.Background(), requestEvent)
 	require.Error(t, err)
 	require.True(t, errorHandleCheck)
 	require.Equal(t, requestEvent, responseEvent)
 }
 
 func TestFlowPostConfirmationHandlers(t *testing.T) {
-	var mainHandlerCheck, mainPreHanlderCheck, mainPostHandlerCheck, globalPreHandlerCheck, globalPostHandlerCheck bool
+	var mainHandlerCheck, mainPreHanlderCheck, mainPostHandlerCheck bool
 
 	eventManager := NewEventManager()
-
-	eventManager.UsePreHandler(func(ctx context.Context, event interface{}) { globalPreHandlerCheck = true })
-	eventManager.UsePostHandler(func(ctx context.Context, event interface{}, err error) { globalPostHandlerCheck = true })
 
 	eventManager.RegisterPostConfirmationHandlers(
 		func(ctx context.Context, event events.CognitoEventUserPoolsPostConfirmation) (events.CognitoEventUserPoolsPostConfirmation, error) {
@@ -86,22 +83,18 @@ func TestFlowPostConfirmationHandlers(t *testing.T) {
 	)
 
 	requestEvent := events.CognitoEventUserPoolsPostConfirmation{}
-	responseEvent, err := eventManager.MainHandler(context.Background(), requestEvent)
+	responseEvent, err := eventManager.RunPostConfirmation(context.Background(), requestEvent)
 	require.Nil(t, err)
 	require.True(t, mainHandlerCheck)
 	require.True(t, mainPreHanlderCheck)
 	require.True(t, mainPostHandlerCheck)
-	require.True(t, globalPreHandlerCheck)
-	require.True(t, globalPostHandlerCheck)
 	require.Equal(t, requestEvent, responseEvent)
 }
 
 func TestFlowPreSignupHandlers(t *testing.T) {
-	var mainHandlerCheck, mainPreHanlderCheck, mainPostHandlerCheck, globalPreHandlerCheck, globalPostHandlerCheck bool
+	var mainHandlerCheck, mainPreHanlderCheck, mainPostHandlerCheck bool
 
 	eventManager := NewEventManager()
-	eventManager.UsePreHandler(func(ctx context.Context, event interface{}) { globalPreHandlerCheck = true })
-	eventManager.UsePostHandler(func(ctx context.Context, event interface{}, err error) { globalPostHandlerCheck = true })
 
 	eventManager.RegisterPreSignupHandlers(
 		func(ctx context.Context, event events.CognitoEventUserPoolsPreSignup) (events.CognitoEventUserPoolsPreSignup, error) {
@@ -121,13 +114,11 @@ func TestFlowPreSignupHandlers(t *testing.T) {
 	)
 
 	requestEvent := events.CognitoEventUserPoolsPreSignup{}
-	responseEvent, err := eventManager.MainHandler(context.Background(), requestEvent)
+	responseEvent, err := eventManager.RunPreSignup(context.Background(), requestEvent)
 	require.Nil(t, err)
 	require.True(t, mainHandlerCheck)
 	require.True(t, mainPreHanlderCheck)
 	require.True(t, mainPostHandlerCheck)
-	require.True(t, globalPreHandlerCheck)
-	require.True(t, globalPostHandlerCheck)
 	require.Equal(t, requestEvent, responseEvent)
 }
 
@@ -145,7 +136,7 @@ func TestFlowMultiTypeHandlers(t *testing.T) {
 	})
 
 	requestEvent := events.CognitoEventUserPoolsPreSignup{}
-	responseEvent, err := eventManager.MainHandler(context.Background(), requestEvent)
+	responseEvent, err := eventManager.RunPreSignup(context.Background(), requestEvent)
 	require.Nil(t, err)
 	require.True(t, preSignupHandlerCheck)
 	require.False(t, postConfirmationHandlerCheck)
@@ -153,17 +144,11 @@ func TestFlowMultiTypeHandlers(t *testing.T) {
 }
 
 func TestNotImplmentEvent(t *testing.T) {
-	requestEvent := events.CognitoEventUserPoolsPreTokenGen{}
-	requestEvent2 := events.CognitoEventUserPoolsPostConfirmation{}
+	requestEvent2 := events.CognitoEventUserPoolsPreSignup{}
 
 	eventManager := NewEventManager()
-	responseEvent, err := eventManager.MainHandler(context.Background(), requestEvent)
+	responseEvent, err := eventManager.RunPreSignup(context.Background(), requestEvent2)
 	require.Error(t, err)
-	require.Equal(t, "HANDLER_NOT_FOUND: Not found handler on event: events.CognitoEventUserPoolsPreTokenGen", err.Error())
-	require.Equal(t, requestEvent, responseEvent)
-
-	responseEvent, err = eventManager.MainHandler(context.Background(), requestEvent2)
-	require.Error(t, err)
-	require.Equal(t, "HANDLER_NOT_FOUND: Not found handler on event: events.CognitoEventUserPoolsPostConfirmation", err.Error())
+	require.Equal(t, "HANDLER_NOT_FOUND: Not found handler on event: preSignup", err.Error())
 	require.Equal(t, requestEvent2, responseEvent)
 }
