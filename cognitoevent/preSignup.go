@@ -6,9 +6,9 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 )
 
-type CognitoPreSignupEventHandler func(ctx context.Context, event events.CognitoEventUserPoolsPreSignupRequest) error
-type CognitoPreSignupPreHandler func(ctx context.Context, event events.CognitoEventUserPoolsPreSignupRequest)
-type CognitoPreSignupPostHandler func(ctx context.Context, event events.CognitoEventUserPoolsPreSignupRequest, err error)
+type CognitoPreSignupEventHandler func(ctx context.Context, event events.CognitoEventUserPoolsPreSignup) (events.CognitoEventUserPoolsPreSignup, error)
+type CognitoPreSignupPreHandler func(ctx context.Context, event events.CognitoEventUserPoolsPreSignup)
+type CognitoPreSignupPostHandler func(ctx context.Context, event events.CognitoEventUserPoolsPreSignup, err error)
 
 type CognitoPreSignupMainHandler struct {
 	preHandlers  []CognitoPreSignupPreHandler

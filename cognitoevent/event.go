@@ -74,25 +74,25 @@ func (e *EventManager) UsePostHandler(handlers ...PostHandler) {
 	e.postHandlers = handlers
 }
 
-func (e *EventManager) runPostConfirmationPreHandler(ctx context.Context, event events.CognitoEventUserPoolsPostConfirmationRequest, handlers []CognitoPostConfirmationPreHandler) {
+func (e *EventManager) runPostConfirmationPreHandler(ctx context.Context, event events.CognitoEventUserPoolsPostConfirmation, handlers []CognitoPostConfirmationPreHandler) {
 	for _, handler := range handlers {
 		handler(ctx, event)
 	}
 }
 
-func (e *EventManager) runPostConfirmationPostHandler(ctx context.Context, event events.CognitoEventUserPoolsPostConfirmationRequest, handlerErr error, handlers []CognitoPostConfirmationPostHandler) {
+func (e *EventManager) runPostConfirmationPostHandler(ctx context.Context, event events.CognitoEventUserPoolsPostConfirmation, handlerErr error, handlers []CognitoPostConfirmationPostHandler) {
 	for _, handler := range handlers {
 		handler(ctx, event, handlerErr)
 	}
 }
 
-func (e *EventManager) runPreSignupPreHandler(ctx context.Context, event events.CognitoEventUserPoolsPreSignupRequest, handlers []CognitoPreSignupPreHandler) {
+func (e *EventManager) runPreSignupPreHandler(ctx context.Context, event events.CognitoEventUserPoolsPreSignup, handlers []CognitoPreSignupPreHandler) {
 	for _, handler := range handlers {
 		handler(ctx, event)
 	}
 }
 
-func (e *EventManager) runPreSignupPostHandler(ctx context.Context, event events.CognitoEventUserPoolsPreSignupRequest, handlerErr error, handlers []CognitoPreSignupPostHandler) {
+func (e *EventManager) runPreSignupPostHandler(ctx context.Context, event events.CognitoEventUserPoolsPreSignup, handlerErr error, handlers []CognitoPreSignupPostHandler) {
 	for _, handler := range handlers {
 		handler(ctx, event, handlerErr)
 	}
@@ -110,48 +110,48 @@ func (e *EventManager) runGlobalPostHandler(ctx context.Context, event interface
 	}
 }
 
-func (e *EventManager) runPostConfirmation(ctx context.Context, event events.CognitoEventUserPoolsPostConfirmationRequest) error {
+func (e *EventManager) runPostConfirmation(ctx context.Context, event events.CognitoEventUserPoolsPostConfirmation) (events.CognitoEventUserPoolsPostConfirmation, error) {
 	e.runGlobalPreHandler(ctx, event, e.preHandlers)
 	e.runPostConfirmationPreHandler(ctx, event, e.postConfirmationMainHandler.preHandlers)
 
-	err := e.postConfirmationMainHandler.handler(ctx, event)
+	respEvent, err := e.postConfirmationMainHandler.handler(ctx, event)
 
 	e.runPostConfirmationPostHandler(ctx, event, err, e.postConfirmationMainHandler.postHandlers)
 	e.runGlobalPostHandler(ctx, event, err, e.postHandlers)
 
-	return err
+	return respEvent, err
 }
 
-func (e *EventManager) runPreSingup(ctx context.Context, event events.CognitoEventUserPoolsPreSignupRequest) error {
+func (e *EventManager) runPreSingup(ctx context.Context, event events.CognitoEventUserPoolsPreSignup) (events.CognitoEventUserPoolsPreSignup, error) {
 	e.runGlobalPreHandler(ctx, event, e.preHandlers)
 	e.runPreSignupPreHandler(ctx, event, e.preSignupMainHandler.preHandlers)
 
-	err := e.preSignupMainHandler.handler(ctx, event)
+	respEvent, err := e.preSignupMainHandler.handler(ctx, event)
 
 	e.runPreSignupPostHandler(ctx, event, err, e.preSignupMainHandler.postHandlers)
 	e.runGlobalPostHandler(ctx, event, err, e.postHandlers)
 
-	return err
+	return respEvent, err
 }
 
-func (e *EventManager) MainHandler(ctx context.Context, event interface{}) error {
-	err := e.run(ctx, event)
+func (e *EventManager) MainHandler(ctx context.Context, event interface{}) (interface{}, error) {
+	respEvent, err := e.run(ctx, event)
 	if err != nil && e.OnError != nil {
 		e.OnError(ctx, event, err)
 	}
 
-	return err
+	return respEvent, err
 }
 
-func (e *EventManager) run(ctx context.Context, event interface{}) error {
+func (e *EventManager) run(ctx context.Context, event interface{}) (interface{}, error) {
 	switch v := event.(type) {
-	case events.CognitoEventUserPoolsPostConfirmationRequest:
+	case events.CognitoEventUserPoolsPostConfirmation:
 		if e.postConfirmationMainHandler == nil {
 			return notImplementHandlerOnEvent(event)
 		}
 
 		return e.runPostConfirmation(ctx, v)
-	case events.CognitoEventUserPoolsPreSignupRequest:
+	case events.CognitoEventUserPoolsPreSignup:
 		if e.preSignupMainHandler == nil {
 			return notImplementHandlerOnEvent(event)
 		}
@@ -162,6 +162,6 @@ func (e *EventManager) run(ctx context.Context, event interface{}) error {
 	}
 }
 
-func notImplementHandlerOnEvent(event interface{}) error {
-	return errors.InternalErrorf("HANDLER_NOT_FOUND", "Not found handler on event: %v", reflect.TypeOf(event)).WithInput(map[string]interface{}{"eventData": event})
+func notImplementHandlerOnEvent(event interface{}) (interface{}, error) {
+	return event, errors.InternalErrorf("HANDLER_NOT_FOUND", "Not found handler on event: %v", reflect.TypeOf(event))
 }
