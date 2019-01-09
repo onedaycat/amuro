@@ -163,5 +163,5 @@ func (e *EventManager) run(ctx context.Context, event interface{}) error {
 }
 
 func notImplementHandlerOnEvent(event interface{}) error {
-	return errors.InternalErrorf("HANDLER_NOT_FOUND", "Not found handler on event: %v", reflect.TypeOf(event))
+	return errors.InternalErrorf("HANDLER_NOT_FOUND", "Not found handler on event: %v", reflect.TypeOf(event)).WithInput(map[string]interface{}{"eventData": event})
 }
