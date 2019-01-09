@@ -6,9 +6,9 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 )
 
-type CognitoPostConfirmationEventHandler func(ctx context.Context, event events.CognitoEventUserPoolsPostConfirmation) (events.CognitoEventUserPoolsPostConfirmation, error)
-type CognitoPostConfirmationPreHandler func(ctx context.Context, event events.CognitoEventUserPoolsPostConfirmation)
-type CognitoPostConfirmationPostHandler func(ctx context.Context, event events.CognitoEventUserPoolsPostConfirmation, err error)
+type CognitoPostConfirmationEventHandler func(ctx context.Context, event events.CognitoEventUserPoolsPostConfirmationRequest) error
+type CognitoPostConfirmationPreHandler func(ctx context.Context, event events.CognitoEventUserPoolsPostConfirmationRequest)
+type CognitoPostConfirmationPostHandler func(ctx context.Context, event events.CognitoEventUserPoolsPostConfirmationRequest, err error)
 
 type CognitoPostConfirmationMainHandler struct {
 	preHandlers  []CognitoPostConfirmationPreHandler
