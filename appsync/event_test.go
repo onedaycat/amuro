@@ -5,9 +5,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/onedaycat/errors"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMainHandlerAndPassDataToMainPostHandler(t *testing.T) {

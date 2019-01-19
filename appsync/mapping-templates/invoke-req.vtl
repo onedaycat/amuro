@@ -5,13 +5,6 @@
         "field": "",
         "arguments": $utils.toJson($context.arguments),
         "source": $utils.toJson($context.source),
-        "identity": {
-            "id": "${context.identity.sub}",
-            "email": "${context.identity.claims.email}",
-            "ip": "${context.identity.sourceIp[0]}"
-            #if( ${context.identity.groups} )
-                ,"groups": $context.identity.groups
-            #end
-        }
+        "identity": $utils.toJson($context.identity)
     }
 }

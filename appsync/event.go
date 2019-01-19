@@ -12,13 +12,6 @@ type PostHandler func(ctx context.Context, event *Event, result interface{}, err
 type EventHandler func(ctx context.Context, event *Event) (interface{}, error)
 type ErrorHandler func(ctx context.Context, event *Event, err error)
 
-type Identity struct {
-	ID     string   `json:"id"`
-	Email  string   `json:"email"`
-	Groups []string `json:"groups"`
-	IP     string   `json:"ip"`
-}
-
 type Event struct {
 	Field    string          `json:"field"`
 	Args     json.RawMessage `json:"arguments"`
