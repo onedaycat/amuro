@@ -10,60 +10,98 @@ import (
 )
 
 func TestParseBatchInvokeEvent(t *testing.T) {
-	payload := `[
+	testcases := []struct {
+		payload  string
+		expEvent *Event
+	}{
 		{
-			"field": "testField1",
-			"arguments": {"arg1": "1"},
-			"source": { "namespace": "1" },
-			"identity": {"sub": "xx"}
+			`[{"field": "testField1","arguments": {"arg1": "1"},"source": { "namespace": "1" },"identity": {"sub": "xx"}},
+			{"field": "testField1","arguments": {"arg1": "1"},"source": { "namespace": "2" },"identity": {"sub": "xx"}}]`,
+			&Event{"testField1", []byte(`{"arg1": "1"}`), nil, &Identity{Sub: "xx"}, []map[string]interface{}{{"namespace": "1"}, {"namespace": "2"}}},
 		},
+		// no field
 		{
-			"field": "testField1",
-			"arguments": {"arg1": "1"},
-			"source": { "namespace": "2" },
-			"identity": {"sub": "xx"}
-		}
-	]`
-
-	event := &Event{}
-	exp := &Event{
-		Field: "testField1",
-		Args:  []byte(`{"arg1": "1"}`),
-		Identity: &Identity{
-			Sub: "xx",
+			`[{"arguments": {"arg1": "1"},"source": { "namespace": "1" },"identity": {"sub": "xx"}},
+			{"field": "testField1","arguments": {"arg1": "1"},"source": { "namespace": "2" },"identity": {"sub": "xx"}}]`,
+			&Event{"", []byte(`{"arg1": "1"}`), nil, &Identity{Sub: "xx"}, []map[string]interface{}{{"namespace": "1"}, {"namespace": "2"}}},
 		},
-		BatchSource: []map[string]interface{}{
-			{"namespace": "1"},
-			{"namespace": "2"},
+		// no args
+		{
+			`[{"field": "testField1","source": { "namespace": "1" },"identity": {"sub": "xx"}},
+			{"field": "testField1","arguments": {"arg1": "1"},"source": { "namespace": "2" },"identity": {"sub": "xx"}}]`,
+			&Event{"testField1", nil, nil, &Identity{Sub: "xx"}, []map[string]interface{}{{"namespace": "1"}, {"namespace": "2"}}},
+		},
+		// no identity
+		{
+			`[{"field": "testField1","arguments": {"arg1": "1"},"source": { "namespace": "1" }},
+			{"field": "testField1","arguments": {"arg1": "1"},"source": { "namespace": "2" },"identity": {"sub": "xx"}}]`,
+			&Event{"testField1", []byte(`{"arg1": "1"}`), nil, nil, []map[string]interface{}{{"namespace": "1"}, {"namespace": "2"}}},
+		},
+		// missing source 1
+		{
+			`[{"field": "testField1","arguments": {"arg1": "1"},"identity": {"sub": "xx"}},
+			{"field": "testField1","arguments": {"arg1": "1"},"source": { "namespace": "2" },"identity": {"sub": "xx"}}]`,
+			&Event{"testField1", []byte(`{"arg1": "1"}`), nil, &Identity{Sub: "xx"}, []map[string]interface{}{{"namespace": "2"}}},
+		},
+		// missing source 2
+		{
+			`[{"field": "testField1","arguments": {"arg1": "1"},"source": { "namespace": "1" },"identity": {"sub": "xx"}},
+			{"field": "testField1","arguments": {"arg1": "1"},"identity": {"sub": "xx"}}]`,
+			&Event{"testField1", []byte(`{"arg1": "1"}`), nil, &Identity{Sub: "xx"}, []map[string]interface{}{{"namespace": "1"}}},
+		},
+		// no source
+		{
+			`[{"field": "testField1","arguments": {"arg1": "1"},"identity": {"sub": "xx"}},
+			{"field": "testField1","arguments": {"arg1": "1"},"identity": {"sub": "xx"}}]`,
+			&Event{"testField1", []byte(`{"arg1": "1"}`), nil, &Identity{Sub: "xx"}, nil},
 		},
 	}
-	err := json.Unmarshal([]byte(payload), event)
-	require.NoError(t, err)
-	require.Equal(t, exp, event)
+
+	for i, testcase := range testcases {
+		event := &Event{}
+		err := json.Unmarshal([]byte(testcase.payload), event)
+		require.NoError(t, err)
+		require.Equal(t, testcase.expEvent, event, i)
+	}
 }
 
 func TestParseInvokeEvent(t *testing.T) {
-	payload := `
+	testcases := []struct {
+		payload  string
+		expEvent *Event
+	}{
 		{
-			"field": "testField1",
-			"arguments": {"arg1": "1"},
-			"source": {"namespace": "1"},
-			"identity": {"sub": "xx"}
-		}
-	`
-
-	event := &Event{}
-	exp := &Event{
-		Field: "testField1",
-		Args:  []byte(`{"arg1": "1"}`),
-		Identity: &Identity{
-			Sub: "xx",
+			`{"field": "testField1","arguments": {"arg1": "1"},"source": {"namespace": "1"},"identity": {"sub": "xx"}}`,
+			&Event{"testField1", []byte(`{"arg1": "1"}`), []byte(`{"namespace": "1"}`), &Identity{Sub: "xx"}, nil},
 		},
-		Source: []byte(`{"namespace": "1"}`),
+		// no field
+		{
+			`{"arguments": {"arg1": "1"},"source": {"namespace": "1"},"identity": {"sub": "xx"}}`,
+			&Event{"", []byte(`{"arg1": "1"}`), []byte(`{"namespace": "1"}`), &Identity{Sub: "xx"}, nil},
+		},
+		// no args
+		{
+			`{"field": "testField1","source": {"namespace": "1"},"identity": {"sub": "xx"}}`,
+			&Event{"testField1", nil, []byte(`{"namespace": "1"}`), &Identity{Sub: "xx"}, nil},
+		},
+		// no identity
+		{
+			`{"field": "testField1","arguments": {"arg1": "1"},"source": {"namespace": "1"}}`,
+			&Event{"testField1", []byte(`{"arg1": "1"}`), []byte(`{"namespace": "1"}`), nil, nil},
+		},
+		// no source
+		{
+			`{"field": "testField1","arguments": {"arg1": "1"},"identity": {"sub": "xx"}}`,
+			&Event{"testField1", []byte(`{"arg1": "1"}`), nil, &Identity{Sub: "xx"}, nil},
+		},
 	}
-	err := json.Unmarshal([]byte(payload), event)
-	require.NoError(t, err)
-	require.Equal(t, exp, event)
+
+	for i, testcase := range testcases {
+		event := &Event{}
+		err := json.Unmarshal([]byte(testcase.payload), event)
+		require.NoError(t, err)
+		require.Equal(t, testcase.expEvent, event, i)
+	}
 }
 
 func TestMainHandlerAndPassDataToMainPostHandler(t *testing.T) {
