@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/buger/jsonparser"
 	"github.com/onedaycat/errors"
 )
 
@@ -13,10 +14,90 @@ type EventHandler func(ctx context.Context, event *Event) (interface{}, error)
 type ErrorHandler func(ctx context.Context, event *Event, err error)
 
 type Event struct {
-	Field    string          `json:"field"`
-	Args     json.RawMessage `json:"arguments"`
-	Source   json.RawMessage `json:"source"`
-	Identity *Identity       `json:"identity"`
+	Field       string          `json:"field"`
+	Args        json.RawMessage `json:"arguments"`
+	Source      json.RawMessage `json:"source"`
+	Identity    *Identity       `json:"identity"`
+	BatchSource []map[string]interface{}
+}
+
+func (e *Event) UnmarshalJSON(b []byte) error {
+	valRoot, dataTypeRoot, _, err := jsonparser.Get(b)
+	if err != nil {
+		return err
+	}
+
+	if dataTypeRoot == jsonparser.Array {
+		e.BatchSource = make([]map[string]interface{}, 0, 5)
+		index := 0
+		jsonparser.ArrayEach(valRoot, func(valRootArr []byte, dataTypeRootArr jsonparser.ValueType, offset int, err error) {
+			var sourceVal []byte
+			var dataTypeSource jsonparser.ValueType
+			var idVal []byte
+			var dataTypeID jsonparser.ValueType
+			if index == 0 {
+				if e.Field, err = jsonparser.GetString(valRootArr, "field"); err != nil && err != jsonparser.KeyPathNotFoundError {
+					panic(err)
+				}
+
+				if idVal, dataTypeID, _, err = jsonparser.Get(valRootArr, "identity"); err != nil && err != jsonparser.KeyPathNotFoundError {
+					panic(err)
+				}
+				if dataTypeID == jsonparser.Object {
+					e.Identity = &Identity{}
+					json.Unmarshal(idVal, e.Identity)
+				}
+
+				if e.Args, _, _, err = jsonparser.Get(valRootArr, "arguments"); err != nil && err != jsonparser.KeyPathNotFoundError {
+					panic(err)
+				}
+
+			}
+
+			if sourceVal, dataTypeSource, _, err = jsonparser.Get(valRootArr, "source"); err != nil && err != jsonparser.KeyPathNotFoundError {
+				panic(err)
+			}
+
+			if dataTypeSource == jsonparser.Object {
+				source := make(map[string]interface{})
+				if err = json.Unmarshal(sourceVal, &source); err != nil {
+					panic(err)
+				}
+				e.BatchSource = append(e.BatchSource, source)
+			}
+
+			index++
+		})
+
+		return nil
+	} else if dataTypeRoot == jsonparser.Object {
+		var err error
+		var idVal []byte
+		var dataTypeID jsonparser.ValueType
+		if e.Field, err = jsonparser.GetString(valRoot, "field"); err != nil && err != jsonparser.KeyPathNotFoundError {
+			panic(err)
+		}
+
+		if idVal, dataTypeID, _, err = jsonparser.Get(valRoot, "identity"); err != nil && err != jsonparser.KeyPathNotFoundError {
+			panic(err)
+		}
+		if dataTypeID == jsonparser.Object {
+			e.Identity = &Identity{}
+			json.Unmarshal(idVal, e.Identity)
+		}
+
+		if e.Args, _, _, err = jsonparser.Get(valRoot, "arguments"); err != nil && err != jsonparser.KeyPathNotFoundError {
+			panic(err)
+		}
+
+		if e.Source, _, _, err = jsonparser.Get(valRoot, "source"); err != nil && err != jsonparser.KeyPathNotFoundError {
+			panic(err)
+		}
+
+		return err
+	}
+
+	return errors.Newf("Unable to UnmarshalJSON of %s", dataTypeRoot.String())
 }
 
 type Result struct {

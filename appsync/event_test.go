@@ -9,6 +9,69 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestParseBatchInvokeEvent(t *testing.T) {
+	payload := `[
+		{
+			"field": "testField1",
+			"arguments": {"arg1": "1"},
+			"source": { "namespace": "1" },
+			"identity": {
+				"sub": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+			}
+		},
+		{
+			"field": "testField1",
+			"arguments": {"arg1": "1"},
+			"source": { "namespace": "2" },
+			"identity": {
+				"sub": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+			}
+		}
+	]`
+
+	event := &Event{}
+	exp := &Event{
+		Field: "testField1",
+		Args:  []byte(`{"arg1": "1"}`),
+		Identity: &Identity{
+			Sub: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+		},
+		BatchSource: []map[string]interface{}{
+			{"namespace": "1"},
+			{"namespace": "2"},
+		},
+	}
+	err := json.Unmarshal([]byte(payload), event)
+	require.NoError(t, err)
+	require.Equal(t, exp, event)
+}
+
+func TestParseInvokeEvent(t *testing.T) {
+	payload := `
+		{
+			"field": "testField1",
+			"arguments": {"arg1": "1"},
+			"source": {"namespace": "1"},
+			"identity": {
+				"sub": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+			}
+		}
+	`
+
+	event := &Event{}
+	exp := &Event{
+		Field: "testField1",
+		Args:  []byte(`{"arg1": "1"}`),
+		Identity: &Identity{
+			Sub: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+		},
+		Source: []byte(`{"namespace": "1"}`),
+	}
+	err := json.Unmarshal([]byte(payload), event)
+	require.NoError(t, err)
+	require.Equal(t, exp, event)
+}
+
 func TestMainHandlerAndPassDataToMainPostHandler(t *testing.T) {
 	triggerCount := 0
 	expectedResultRawJSON := json.RawMessage(`{id:"id_test", check: 88}`)
