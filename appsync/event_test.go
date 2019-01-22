@@ -15,17 +15,13 @@ func TestParseBatchInvokeEvent(t *testing.T) {
 			"field": "testField1",
 			"arguments": {"arg1": "1"},
 			"source": { "namespace": "1" },
-			"identity": {
-				"sub": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-			}
+			"identity": {"sub": "xx"}
 		},
 		{
 			"field": "testField1",
 			"arguments": {"arg1": "1"},
 			"source": { "namespace": "2" },
-			"identity": {
-				"sub": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-			}
+			"identity": {"sub": "xx"}
 		}
 	]`
 
@@ -34,7 +30,7 @@ func TestParseBatchInvokeEvent(t *testing.T) {
 		Field: "testField1",
 		Args:  []byte(`{"arg1": "1"}`),
 		Identity: &Identity{
-			Sub: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+			Sub: "xx",
 		},
 		BatchSource: []map[string]interface{}{
 			{"namespace": "1"},
@@ -52,9 +48,7 @@ func TestParseInvokeEvent(t *testing.T) {
 			"field": "testField1",
 			"arguments": {"arg1": "1"},
 			"source": {"namespace": "1"},
-			"identity": {
-				"sub": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-			}
+			"identity": {"sub": "xx"}
 		}
 	`
 
@@ -63,7 +57,7 @@ func TestParseInvokeEvent(t *testing.T) {
 		Field: "testField1",
 		Args:  []byte(`{"arg1": "1"}`),
 		Identity: &Identity{
-			Sub: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+			Sub: "xx",
 		},
 		Source: []byte(`{"namespace": "1"}`),
 	}

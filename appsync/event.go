@@ -28,7 +28,6 @@ func (e *Event) UnmarshalJSON(b []byte) error {
 	}
 
 	if dataTypeRoot == jsonparser.Array {
-		e.BatchSource = make([]map[string]interface{}, 0, 5)
 		index := 0
 		jsonparser.ArrayEach(valRoot, func(valRootArr []byte, dataTypeRootArr jsonparser.ValueType, offset int, err error) {
 			var sourceVal []byte
@@ -59,6 +58,9 @@ func (e *Event) UnmarshalJSON(b []byte) error {
 			}
 
 			if dataTypeSource == jsonparser.Object {
+				if e.BatchSource == nil {
+					e.BatchSource = make([]map[string]interface{}, 0, 5)
+				}
 				source := make(map[string]interface{})
 				if err = json.Unmarshal(sourceVal, &source); err != nil {
 					panic(err)
@@ -94,7 +96,7 @@ func (e *Event) UnmarshalJSON(b []byte) error {
 			panic(err)
 		}
 
-		return err
+		return nil
 	}
 
 	return errors.Newf("Unable to UnmarshalJSON of %s", dataTypeRoot.String())
