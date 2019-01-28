@@ -1,6 +1,7 @@
 package appsync
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 
@@ -8,95 +9,68 @@ import (
 	"github.com/onedaycat/errors"
 )
 
-type PreHandler func(ctx context.Context, event *Event) error
-type PostHandler func(ctx context.Context, event *Event, result interface{}, err error)
-type EventHandler func(ctx context.Context, event *Event) (interface{}, error)
-type ErrorHandler func(ctx context.Context, event *Event, err error)
+const (
+	eventInvokeType      int = 0
+	eventBatchInvokeType int = 1
+)
 
-type Event struct {
-	Field       string          `json:"field"`
-	Args        json.RawMessage `json:"arguments"`
-	Source      json.RawMessage `json:"source"`
-	Identity    *Identity       `json:"identity"`
-	BatchSource []map[string]interface{}
+type request struct {
+	InvokeEvent      *InvokeEvent
+	BatchInvokeEvent *BatchInvokeEvent
+	InvokeEvents     []*InvokeEvent
+	eventType        int
+	sources          json.RawMessage
 }
 
-func (e *Event) UnmarshalJSON(b []byte) error {
-	valRoot, dataTypeRoot, _, err := jsonparser.Get(b)
+func (r *request) UnmarshalJSON(b []byte) error {
+	_, dataTypeRoot, _, err := jsonparser.Get(b)
 	if err != nil {
 		return err
 	}
 
 	if dataTypeRoot == jsonparser.Array {
-		index := 0
-		jsonparser.ArrayEach(valRoot, func(valRootArr []byte, dataTypeRootArr jsonparser.ValueType, offset int, err error) {
-			var sourceVal []byte
-			var dataTypeSource jsonparser.ValueType
-			var idVal []byte
-			var dataTypeID jsonparser.ValueType
-			if index == 0 {
-				if e.Field, err = jsonparser.GetString(valRootArr, "field"); err != nil && err != jsonparser.KeyPathNotFoundError {
-					panic(err)
-				}
+		r.InvokeEvents = make(InvokeEvents, 0, 5)
+		r.eventType = eventBatchInvokeType
+		if err = json.Unmarshal(b, &r.InvokeEvents); err != nil {
+			return err
+		}
 
-				if idVal, dataTypeID, _, err = jsonparser.Get(valRootArr, "identity"); err != nil && err != jsonparser.KeyPathNotFoundError {
-					panic(err)
-				}
-				if dataTypeID == jsonparser.Object {
-					e.Identity = &Identity{}
-					json.Unmarshal(idVal, e.Identity)
-				}
+		if len(r.InvokeEvents) == 0 {
+			return errors.Newf("No data in batch invoke")
+		}
 
-				if e.Args, _, _, err = jsonparser.Get(valRootArr, "arguments"); err != nil && err != jsonparser.KeyPathNotFoundError {
-					panic(err)
-				}
-
+		b := bytes.NewBuffer(nil)
+		b.WriteByte(91)
+		first := true
+		for i := 0; i < len(r.InvokeEvents); i++ {
+			if len(r.InvokeEvents[i].Source) == 0 {
+				continue
 			}
 
-			if sourceVal, dataTypeSource, _, err = jsonparser.Get(valRootArr, "source"); err != nil && err != jsonparser.KeyPathNotFoundError {
-				panic(err)
+			if !first {
+				b.WriteByte(44)
 			}
+			b.Write(r.InvokeEvents[i].Source)
+			first = false
+		}
+		b.WriteByte(93)
 
-			if dataTypeSource == jsonparser.Object {
-				if e.BatchSource == nil {
-					e.BatchSource = make([]map[string]interface{}, 0, 5)
-				}
-				source := make(map[string]interface{})
-				if err = json.Unmarshal(sourceVal, &source); err != nil {
-					panic(err)
-				}
-				e.BatchSource = append(e.BatchSource, source)
-			}
+		r.BatchInvokeEvent = &BatchInvokeEvent{
+			Field:    r.InvokeEvents[0].Field,
+			Args:     r.InvokeEvents[0].Args,
+			Sources:  b.Bytes(),
+			Identity: r.InvokeEvents[0].Identity,
+		}
 
-			index++
-		})
+		if len(r.BatchInvokeEvent.Sources) == 2 {
+			r.BatchInvokeEvent.Sources = nil
+		}
 
 		return nil
 	} else if dataTypeRoot == jsonparser.Object {
-		var err error
-		var idVal []byte
-		var dataTypeID jsonparser.ValueType
-		if e.Field, err = jsonparser.GetString(valRoot, "field"); err != nil && err != jsonparser.KeyPathNotFoundError {
-			panic(err)
-		}
-
-		if idVal, dataTypeID, _, err = jsonparser.Get(valRoot, "identity"); err != nil && err != jsonparser.KeyPathNotFoundError {
-			panic(err)
-		}
-		if dataTypeID == jsonparser.Object {
-			e.Identity = &Identity{}
-			json.Unmarshal(idVal, e.Identity)
-		}
-
-		if e.Args, _, _, err = jsonparser.Get(valRoot, "arguments"); err != nil && err != jsonparser.KeyPathNotFoundError {
-			panic(err)
-		}
-
-		if e.Source, _, _, err = jsonparser.Get(valRoot, "source"); err != nil && err != jsonparser.KeyPathNotFoundError {
-			panic(err)
-		}
-
-		return nil
+		r.InvokeEvent = &InvokeEvent{}
+		r.eventType = eventInvokeType
+		return json.Unmarshal(b, r.InvokeEvent)
 	}
 
 	return errors.Newf("Unable to UnmarshalJSON of %s", dataTypeRoot.String())
@@ -107,66 +81,88 @@ type Result struct {
 	Error *errors.AppError `json:"error"`
 }
 
-func (e *Event) ParseArgs(v interface{}) error {
-	return json.Unmarshal(e.Args, v)
-}
-
-func (e *Event) ParseSource(v interface{}) error {
-	return json.Unmarshal(e.Source, v)
-}
-
-type MainHandler struct {
-	handler      EventHandler
-	preHandlers  []PreHandler
-	postHandlers []PostHandler
-}
-
 type EventManager struct {
-	fields       map[string]*MainHandler
-	errorHandler ErrorHandler
-	preHandlers  []PreHandler
-	postHandlers []PostHandler
+	invokeFields            map[string]*invokeHandlers
+	invokeErrorHandler      InvokeErrorHandler
+	invokePreHandlers       []InvokePreHandler
+	invokePostHandlers      []InvokePostHandler
+	batchInvokeFields       map[string]*batchInvokeHandlers
+	batchInvokeErrorHandler BatchInvokeErrorHandler
+	batchInvokePreHandlers  []BatchInvokePreHandler
+	batchInvokePostHandlers []BatchInvokePostHandler
 }
 
 func NewEventManager() *EventManager {
 	return &EventManager{
-		fields:       make(map[string]*MainHandler),
-		errorHandler: func(ctx context.Context, event *Event, err error) {},
-		preHandlers:  []PreHandler{},
-		postHandlers: []PostHandler{},
+		invokeFields:            make(map[string]*invokeHandlers),
+		invokeErrorHandler:      func(ctx context.Context, event *InvokeEvent, err error) {},
+		invokePreHandlers:       []InvokePreHandler{},
+		invokePostHandlers:      []InvokePostHandler{},
+		batchInvokeFields:       make(map[string]*batchInvokeHandlers),
+		batchInvokeErrorHandler: func(ctx context.Context, event *BatchInvokeEvent, err error) {},
+		batchInvokePreHandlers:  []BatchInvokePreHandler{},
+		batchInvokePostHandlers: []BatchInvokePostHandler{},
 	}
 }
 
-func (e *EventManager) OnError(handler ErrorHandler) {
-	e.errorHandler = handler
+func (e *EventManager) OnInvokeError(handler InvokeErrorHandler) {
+	e.invokeErrorHandler = handler
 }
 
-func (e *EventManager) RegisterField(field string, handler EventHandler, preHandler []PreHandler, postHandler []PostHandler) {
-	e.fields[field] = &MainHandler{
+func (e *EventManager) OnBatchInvokeError(handler BatchInvokeErrorHandler) {
+	e.batchInvokeErrorHandler = handler
+}
+
+func (e *EventManager) RegisterInvoke(field string, handler InvokeEventHandler, preHandler []InvokePreHandler, postHandler []InvokePostHandler) {
+	e.invokeFields[field] = &invokeHandlers{
 		handler:      handler,
 		preHandlers:  preHandler,
 		postHandlers: postHandler,
 	}
 }
 
-func (e *EventManager) UsePreHandler(handlers ...PreHandler) {
+func (e *EventManager) RegisterBatchInvoke(field string, handler BatchInvokeEventHandler, preHandler []BatchInvokePreHandler, postHandler []BatchInvokePostHandler) {
+	e.batchInvokeFields[field] = &batchInvokeHandlers{
+		handler:      handler,
+		preHandlers:  preHandler,
+		postHandlers: postHandler,
+	}
+}
+
+func (e *EventManager) UseInvokePreHandler(handlers ...InvokePreHandler) {
 	if len(handlers) == 0 {
 		return
 	}
 
-	e.preHandlers = handlers
+	e.invokePreHandlers = handlers
 }
 
-func (e *EventManager) UsePostHandler(handlers ...PostHandler) {
+func (e *EventManager) UseBatchInvokePreHandler(handlers ...BatchInvokePreHandler) {
 	if len(handlers) == 0 {
 		return
 	}
 
-	e.postHandlers = handlers
+	e.batchInvokePreHandlers = handlers
 }
 
-func (e *EventManager) runHandleError(ctx context.Context, event *Event, err error, data interface{}) (*Result, error) {
-	e.errorHandler(ctx, event, err)
+func (e *EventManager) UseInvokePostHandler(handlers ...InvokePostHandler) {
+	if len(handlers) == 0 {
+		return
+	}
+
+	e.invokePostHandlers = handlers
+}
+
+func (e *EventManager) UseBatchInvokePostHandler(handlers ...BatchInvokePostHandler) {
+	if len(handlers) == 0 {
+		return
+	}
+
+	e.batchInvokePostHandlers = handlers
+}
+
+func (e *EventManager) runHandleInvokeError(ctx context.Context, event *InvokeEvent, err error, data interface{}) (*Result, error) {
+	e.invokeErrorHandler(ctx, event, err)
 	appErr, ok := errors.FromError(err)
 	if ok {
 		return &Result{
@@ -181,7 +177,7 @@ func (e *EventManager) runHandleError(ctx context.Context, event *Event, err err
 	}, nil
 }
 
-func (e *EventManager) runPreHandler(ctx context.Context, event *Event, handlers []PreHandler) error {
+func (e *EventManager) runInvokePreHandler(ctx context.Context, event *InvokeEvent, handlers []InvokePreHandler) error {
 	for _, handler := range handlers {
 		if err := handler(ctx, event); err != nil {
 			return err
@@ -191,43 +187,107 @@ func (e *EventManager) runPreHandler(ctx context.Context, event *Event, handlers
 	return nil
 }
 
-func (e *EventManager) runPostHandler(ctx context.Context, event *Event, data interface{}, handlerErr error, handlers []PostHandler) {
+func (e *EventManager) runInvokePostHandler(ctx context.Context, event *InvokeEvent, data interface{}, handlerErr error, handlers []InvokePostHandler) {
 	for _, handler := range handlers {
 		handler(ctx, event, data, handlerErr)
 	}
 }
 
-func (e *EventManager) Run(ctx context.Context, event *Event) (*Result, error) {
-	if mainHandler, ok := e.fields[event.Field]; ok {
-		if err := e.runPreHandler(ctx, event, e.preHandlers); err != nil {
-			return e.runHandleError(ctx, event, err, nil)
-		}
-
-		if err := e.runPreHandler(ctx, event, mainHandler.preHandlers); err != nil {
-			return e.runHandleError(ctx, event, err, nil)
-		}
-
-		data, err := mainHandler.handler(ctx, event)
-
-		e.runPostHandler(ctx, event, data, err, mainHandler.postHandlers)
-		e.runPostHandler(ctx, event, data, err, e.postHandlers)
-
-		if err != nil {
-			return e.runHandleError(ctx, event, err, data)
-		}
-
+func (e *EventManager) runHandleBatchInvokeError(ctx context.Context, event *BatchInvokeEvent, err error, data interface{}) (*Result, error) {
+	e.batchInvokeErrorHandler(ctx, event, err)
+	appErr, ok := errors.FromError(err)
+	if ok {
 		return &Result{
 			Data:  data,
-			Error: nil,
+			Error: appErr,
 		}, nil
 	}
 
-	err := errors.InternalErrorf("FIELD_NOT_FOUND", "Not found handler on field %s", event.Field)
-	e.errorHandler(ctx, event, err)
-
-	return nil, err
+	return &Result{
+		Data:  data,
+		Error: errors.InternalError("UNKNOWN_CODE", err.Error()),
+	}, nil
 }
 
-func (e *EventManager) DefaultHandler(ctx context.Context, event *Event) (interface{}, error) {
-	return e.Run(ctx, event)
+func (e *EventManager) runBatchInvokePreHandler(ctx context.Context, event *BatchInvokeEvent, handlers []BatchInvokePreHandler) error {
+	for _, handler := range handlers {
+		if err := handler(ctx, event); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (e *EventManager) runBatchInvokePostHandler(ctx context.Context, event *BatchInvokeEvent, data interface{}, handlerErr error, handlers []BatchInvokePostHandler) {
+	for _, handler := range handlers {
+		handler(ctx, event, data, handlerErr)
+	}
+}
+
+func (e *EventManager) Run(ctx context.Context, req *request) (*Result, error) {
+	switch req.eventType {
+	case eventBatchInvokeType:
+		event := req.BatchInvokeEvent
+		if mainHandler, ok := e.batchInvokeFields[event.Field]; ok {
+			if err := e.runBatchInvokePreHandler(ctx, event, e.batchInvokePreHandlers); err != nil {
+				return e.runHandleBatchInvokeError(ctx, event, err, nil)
+			}
+
+			if err := e.runBatchInvokePreHandler(ctx, event, mainHandler.preHandlers); err != nil {
+				return e.runHandleBatchInvokeError(ctx, event, err, nil)
+			}
+
+			data, err := mainHandler.handler(ctx, event)
+
+			e.runBatchInvokePostHandler(ctx, event, data, err, mainHandler.postHandlers)
+			e.runBatchInvokePostHandler(ctx, event, data, err, e.batchInvokePostHandlers)
+
+			if err != nil {
+				return e.runHandleBatchInvokeError(ctx, event, err, data)
+			}
+
+			return &Result{
+				Data:  data,
+				Error: nil,
+			}, nil
+		}
+
+		err := errors.InternalErrorf("FIELD_NOT_FOUND", "Not found handler on field %s", event.Field)
+		e.runHandleBatchInvokeError(ctx, event, err, nil)
+
+		return nil, err
+	case eventInvokeType:
+		event := req.InvokeEvent
+		if mainHandler, ok := e.invokeFields[event.Field]; ok {
+			if err := e.runInvokePreHandler(ctx, event, e.invokePreHandlers); err != nil {
+				return e.runHandleInvokeError(ctx, event, err, nil)
+			}
+
+			if err := e.runInvokePreHandler(ctx, event, mainHandler.preHandlers); err != nil {
+				return e.runHandleInvokeError(ctx, event, err, nil)
+			}
+
+			data, err := mainHandler.handler(ctx, event)
+
+			e.runInvokePostHandler(ctx, event, data, err, mainHandler.postHandlers)
+			e.runInvokePostHandler(ctx, event, data, err, e.invokePostHandlers)
+
+			if err != nil {
+				return e.runHandleInvokeError(ctx, event, err, data)
+			}
+
+			return &Result{
+				Data:  data,
+				Error: nil,
+			}, nil
+		}
+
+		err := errors.InternalErrorf("FIELD_NOT_FOUND", "Not found handler on field %s", event.Field)
+		e.runHandleInvokeError(ctx, event, err, nil)
+
+		return nil, err
+	}
+
+	return nil, errors.InternalErrorf("FIELD_NOT_FOUND", "Not found handler")
 }
