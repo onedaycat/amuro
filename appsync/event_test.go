@@ -8,6 +8,7 @@ import (
 )
 
 func TestParseBatchInvokeEvent(t *testing.T) {
+
 	testcases := []struct {
 		payload  string
 		expEvent *BatchInvokeEvent
@@ -15,43 +16,43 @@ func TestParseBatchInvokeEvent(t *testing.T) {
 		{
 			`[{"field": "testField1","arguments": {"arg1": "1"},"source": {"namespace": "1"},"identity": {"sub": "xx"}},
 			{"field": "testField1","arguments": {"arg1": "1"},"source": {"namespace": "2"},"identity": {"sub": "xx"}}]`,
-			&BatchInvokeEvent{"testField1", []byte(`{"arg1": "1"}`), []byte(`[{"namespace": "1"},{"namespace": "2"}]`), &Identity{Sub: "xx"}},
+			&BatchInvokeEvent{"testField1", []byte(`{"arg1": "1"}`), []byte(`[{"namespace": "1"},{"namespace": "2"}]`), &Identity{Sub: "xx"}, 2},
 		},
 		// no field
 		{
 			`[{"arguments": {"arg1": "1"},"source": {"namespace": "1"},"identity": {"sub": "xx"}},
 			{"field": "testField1","arguments": {"arg1": "1"},"source": {"namespace": "2"},"identity": {"sub": "xx"}}]`,
-			&BatchInvokeEvent{"", []byte(`{"arg1": "1"}`), []byte(`[{"namespace": "1"},{"namespace": "2"}]`), &Identity{Sub: "xx"}},
+			&BatchInvokeEvent{"", []byte(`{"arg1": "1"}`), []byte(`[{"namespace": "1"},{"namespace": "2"}]`), &Identity{Sub: "xx"}, 2},
 		},
 		// no args
 		{
 			`[{"field": "testField1","source": {"namespace": "1"},"identity": {"sub": "xx"}},
 			{"field": "testField1","arguments": {"arg1": "1"},"source": {"namespace": "2"},"identity": {"sub": "xx"}}]`,
-			&BatchInvokeEvent{"testField1", nil, []byte(`[{"namespace": "1"},{"namespace": "2"}]`), &Identity{Sub: "xx"}},
+			&BatchInvokeEvent{"testField1", nil, []byte(`[{"namespace": "1"},{"namespace": "2"}]`), &Identity{Sub: "xx"}, 2},
 		},
 		// no identity
 		{
 			`[{"field": "testField1","arguments": {"arg1": "1"},"source": {"namespace": "1"}},
 			{"field": "testField1","arguments": {"arg1": "1"},"source": {"namespace": "2"},"identity": {"sub": "xx"}}]`,
-			&BatchInvokeEvent{"testField1", []byte(`{"arg1": "1"}`), []byte(`[{"namespace": "1"},{"namespace": "2"}]`), nil},
+			&BatchInvokeEvent{"testField1", []byte(`{"arg1": "1"}`), []byte(`[{"namespace": "1"},{"namespace": "2"}]`), nil, 2},
 		},
 		// missing source 1
 		{
 			`[{"field": "testField1","arguments": {"arg1": "1"},"identity": {"sub": "xx"}},
 			{"field": "testField1","arguments": {"arg1": "1"},"source": {"namespace": "2"},"identity": {"sub": "xx"}}]`,
-			&BatchInvokeEvent{"testField1", []byte(`{"arg1": "1"}`), []byte(`[{"namespace": "2"}]`), &Identity{Sub: "xx"}},
+			&BatchInvokeEvent{"testField1", []byte(`{"arg1": "1"}`), []byte(`[{"namespace": "2"}]`), &Identity{Sub: "xx"}, 1},
 		},
 		// missing source 2
 		{
 			`[{"field": "testField1","arguments": {"arg1": "1"},"source": {"namespace": "1"},"identity": {"sub": "xx"}},
 			{"field": "testField1","arguments": {"arg1": "1"},"identity": {"sub": "xx"}}]`,
-			&BatchInvokeEvent{"testField1", []byte(`{"arg1": "1"}`), []byte(`[{"namespace": "1"}]`), &Identity{Sub: "xx"}},
+			&BatchInvokeEvent{"testField1", []byte(`{"arg1": "1"}`), []byte(`[{"namespace": "1"}]`), &Identity{Sub: "xx"}, 1},
 		},
 		// no source
 		{
 			`[{"field": "testField1","arguments": {"arg1": "1"},"identity": {"sub": "xx"}},
 			{"field": "testField1","arguments": {"arg1": "1"},"identity": {"sub": "xx"}}]`,
-			&BatchInvokeEvent{"testField1", []byte(`{"arg1": "1"}`), nil, &Identity{Sub: "xx"}},
+			&BatchInvokeEvent{"testField1", []byte(`{"arg1": "1"}`), nil, &Identity{Sub: "xx"}, 0},
 		},
 	}
 

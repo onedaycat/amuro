@@ -21,6 +21,7 @@ type BatchInvokeEvent struct {
 	Args     json.RawMessage `json:"arguments"`
 	Sources  json.RawMessage `json:"sources"`
 	Identity *Identity       `json:"identity"`
+	NSource  int             `json:"-"`
 }
 
 func (e *BatchInvokeEvent) ParseArgs(v interface{}) error {

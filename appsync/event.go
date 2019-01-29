@@ -42,6 +42,7 @@ func (r *request) UnmarshalJSON(b []byte) error {
 		b := bytes.NewBuffer(nil)
 		b.WriteByte(91)
 		first := true
+		n := 0
 		for i := 0; i < len(r.InvokeEvents); i++ {
 			if len(r.InvokeEvents[i].Source) == 0 {
 				continue
@@ -52,6 +53,7 @@ func (r *request) UnmarshalJSON(b []byte) error {
 			}
 			b.Write(r.InvokeEvents[i].Source)
 			first = false
+			n = n + 1
 		}
 		b.WriteByte(93)
 
@@ -60,6 +62,7 @@ func (r *request) UnmarshalJSON(b []byte) error {
 			Args:     r.InvokeEvents[0].Args,
 			Sources:  b.Bytes(),
 			Identity: r.InvokeEvents[0].Identity,
+			NSource:  n,
 		}
 
 		if len(r.BatchInvokeEvent.Sources) == 2 {
@@ -225,7 +228,7 @@ func (e *EventManager) runBatchInvokePostHandler(ctx context.Context, event *Bat
 	}
 }
 
-func (e *EventManager) Run(ctx context.Context, req *request) (*Result, error) {
+func (e *EventManager) Run(ctx context.Context, req *request) (interface{}, error) {
 	switch req.eventType {
 	case eventBatchInvokeType:
 		event := req.BatchInvokeEvent
@@ -239,6 +242,14 @@ func (e *EventManager) Run(ctx context.Context, req *request) (*Result, error) {
 			}
 
 			data, err := mainHandler.handler(ctx, event)
+			if err != nil {
+				errs := make([]interface{}, 0, event.NSource)
+				for i := 0; i < event.NSource; i++ {
+					errs = append(errs, err)
+				}
+
+				return errs, nil
+			}
 
 			e.runBatchInvokePostHandler(ctx, event, data, err, mainHandler.postHandlers)
 			e.runBatchInvokePostHandler(ctx, event, data, err, e.batchInvokePostHandlers)
@@ -247,10 +258,7 @@ func (e *EventManager) Run(ctx context.Context, req *request) (*Result, error) {
 				return e.runHandleBatchInvokeError(ctx, event, err, data)
 			}
 
-			return &Result{
-				Data:  data,
-				Error: nil,
-			}, nil
+			return data, nil
 		}
 
 		err := errors.InternalErrorf("FIELD_NOT_FOUND", "Not found handler on field %s", event.Field)
