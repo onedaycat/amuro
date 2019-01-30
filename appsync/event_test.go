@@ -165,13 +165,10 @@ func TestBatchInvokeErrorHandler(t *testing.T) {
 
 	result1, err := e.Run(context.Background(), req1)
 	require.NoError(t, err)
-	require.Equal(t, &Results{
-		Results: []*Result{
-			{nil, fnErr},
-			{nil, fnErr},
-			{nil, fnErr},
-		},
-		Error: fnErr,
+	require.Equal(t, []*Result{
+		{nil, fnErr},
+		{nil, fnErr},
+		{nil, fnErr},
 	}, result1)
 	require.True(t, isRunErr)
 }
@@ -189,13 +186,10 @@ func TestFieldNotFound(t *testing.T) {
 
 	batchInvoke, err := e.Run(context.Background(), reqBatchInvoke)
 	require.NoError(t, err)
-	require.Equal(t, &Results{
-		Results: []*Result{
-			{nil, ErrFieldNotFound("fn1")},
-			{nil, ErrFieldNotFound("fn1")},
-			{nil, ErrFieldNotFound("fn1")},
-		},
-		Error: ErrFieldNotFound("fn1"),
+	require.Equal(t, []*Result{
+		{nil, ErrFieldNotFound("fn1")},
+		{nil, ErrFieldNotFound("fn1")},
+		{nil, ErrFieldNotFound("fn1")},
 	}, batchInvoke)
 
 	reqInvoke := &Request{
@@ -368,11 +362,8 @@ func TestBatchInvokePreHandler(t *testing.T) {
 
 		result1, err := e.Run(context.Background(), req)
 		require.NoError(t, err)
-		require.Equal(t, &Results{
-			Results: []*Result{
-				{data, nil},
-			},
-			Error: nil,
+		require.Equal(t, []*Result{
+			{data, nil},
 		}, result1)
 		require.True(t, isPreRun)
 		require.True(t, isHandlerRun)
@@ -393,11 +384,8 @@ func TestBatchInvokePreHandler(t *testing.T) {
 
 		result1, err := e.Run(context.Background(), req)
 		require.NoError(t, err)
-		require.Equal(t, &Results{
-			Results: []*Result{
-				{nil, fnErr},
-			},
-			Error: fnErr,
+		require.Equal(t, []*Result{
+			{nil, fnErr},
 		}, result1)
 		require.True(t, isPreRun)
 		require.False(t, isHandlerRun)
@@ -419,11 +407,8 @@ func TestBatchInvokePreHandler(t *testing.T) {
 
 		result1, err := e.Run(context.Background(), req)
 		require.NoError(t, err)
-		require.Equal(t, &Results{
-			Results: []*Result{
-				{nil, fnErr},
-			},
-			Error: fnErr,
+		require.Equal(t, []*Result{
+			{nil, fnErr},
 		}, result1)
 		require.True(t, isPreRun)
 		require.False(t, isHandlerRun)
@@ -709,7 +694,7 @@ func TestBatchInvokePostHandler(t *testing.T) {
 
 		result1, err := e.Run(context.Background(), req)
 		require.NoError(t, err)
-		require.Equal(t, makeErrorResults(1, resultErr), result1)
+		require.Equal(t, makeErrorResults(1, resultErr).Results, result1)
 		require.True(t, isLocalRun)
 		require.False(t, isLocalErrRun)
 		require.True(t, isGlobalRun)
@@ -739,7 +724,7 @@ func TestBatchInvokePostHandler(t *testing.T) {
 
 		result1, err := e.Run(context.Background(), req)
 		require.NoError(t, err)
-		require.Equal(t, makeErrorResults(1, resultErr), result1)
+		require.Equal(t, makeErrorResults(1, resultErr).Results, result1)
 		require.True(t, isLocalRun)
 		require.True(t, isLocalErrRun)
 		require.False(t, isGlobalRun)
@@ -769,7 +754,7 @@ func TestBatchInvokePostHandler(t *testing.T) {
 
 		result1, err := e.Run(context.Background(), req)
 		require.NoError(t, err)
-		require.Equal(t, makeErrorResults(1, resultErr), result1)
+		require.Equal(t, makeErrorResults(1, resultErr).Results, result1)
 		require.True(t, isLocalRun)
 		require.False(t, isLocalErrRun)
 		require.True(t, isGlobalRun)
@@ -799,9 +784,8 @@ func TestBatchInvokePostHandler(t *testing.T) {
 
 		result1, err := e.Run(context.Background(), req)
 		require.NoError(t, err)
-		require.Equal(t, &Results{
-			Results: []*Result{{data, nil}},
-			Error:   nil,
+		require.Equal(t, []*Result{
+			{data, nil},
 		}, result1)
 		require.True(t, isLocalRun)
 		require.False(t, isLocalErrRun)

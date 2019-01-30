@@ -80,37 +80,29 @@ func TestBatchInvokeHandler(t *testing.T) {
 
 	result1, err := e.Run(context.Background(), req1)
 	require.NoError(t, err)
-	require.Equal(t, &Results{
-		Results: []*Result{
-			{"1", nil},
-			{"2", nil},
-			{"3", nil},
-		},
+	require.Equal(t, []*Result{
+		{"1", nil},
+		{"2", nil},
+		{"3", nil},
 	}, result1)
 
 	result2, err := e.Run(context.Background(), req2)
 	require.NoError(t, err)
-	require.Equal(t, makeErrorResults(3, fn2Err), result2)
+	require.Equal(t, makeErrorResults(3, fn2Err).Results, result2)
 
 	result3, err := e.Run(context.Background(), req3)
 	require.NoError(t, err)
-	require.Equal(t, &Results{
-		Results: []*Result{
-			{nil, ErrBatchInvokeResultSizeNotMatch},
-			{nil, ErrBatchInvokeResultSizeNotMatch},
-			{nil, ErrBatchInvokeResultSizeNotMatch},
-		},
-		Error: ErrBatchInvokeResultSizeNotMatch,
+	require.Equal(t, []*Result{
+		{nil, ErrBatchInvokeResultSizeNotMatch},
+		{nil, ErrBatchInvokeResultSizeNotMatch},
+		{nil, ErrBatchInvokeResultSizeNotMatch},
 	}, result3)
 
 	result4, err := e.Run(context.Background(), req4)
 	require.NoError(t, err)
-	require.Equal(t, &Results{
-		Results: []*Result{
-			{nil, ErrNoResult},
-			{nil, ErrNoResult},
-			{nil, ErrNoResult},
-		},
-		Error: ErrNoResult,
+	require.Equal(t, []*Result{
+		{nil, ErrNoResult},
+		{nil, ErrNoResult},
+		{nil, ErrNoResult},
 	}, result4)
 }

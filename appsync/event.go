@@ -215,11 +215,11 @@ func (e *EventManager) Run(ctx context.Context, req *Request) (interface{}, erro
 		event := req.BatchInvokeEvent
 		if mainHandler, ok := e.batchInvokeFields[event.Field]; ok {
 			if xresult := e.runBatchInvokePreHandler(ctx, event, e.batchInvokePreHandlers); xresult != nil {
-				return xresult, nil
+				return xresult.Results, nil
 			}
 
 			if xresult := e.runBatchInvokePreHandler(ctx, event, mainHandler.preHandlers); xresult != nil {
-				return xresult, nil
+				return xresult.Results, nil
 			}
 
 			results := mainHandler.handler(ctx, event)
@@ -227,7 +227,7 @@ func (e *EventManager) Run(ctx context.Context, req *Request) (interface{}, erro
 				results := makeErrorResults(event.NSource, ErrNoResult)
 				e.batchInvokeErrorHandler(ctx, event, results.Error)
 
-				return results, nil
+				return results.Results, nil
 			}
 
 			if results.Error != nil {
@@ -235,19 +235,19 @@ func (e *EventManager) Run(ctx context.Context, req *Request) (interface{}, erro
 			}
 
 			if xresult := e.runBatchInvokePostHandler(ctx, event, results, mainHandler.postHandlers); xresult != nil {
-				return xresult, nil
+				return xresult.Results, nil
 			}
 
 			if xresult := e.runBatchInvokePostHandler(ctx, event, results, e.batchInvokePostHandlers); xresult != nil {
-				return xresult, nil
+				return xresult.Results, nil
 			}
 
-			return results, nil
+			return results.Results, nil
 		}
 
 		err := ErrFieldNotFound(event.Field)
 		e.batchInvokeErrorHandler(ctx, event, err)
-		return makeErrorResults(event.NSource, err), nil
+		return makeErrorResults(event.NSource, err).Results, nil
 
 	case eventInvokeType:
 		event := req.InvokeEvent
