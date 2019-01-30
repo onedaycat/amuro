@@ -81,7 +81,7 @@ func TestBatchInvokeHandler(t *testing.T) {
 	result1, err := e.Run(context.Background(), req1)
 	require.NoError(t, err)
 	require.Equal(t, &Results{
-		results: []*Result{
+		Results: []*Result{
 			{"1", nil},
 			{"2", nil},
 			{"3", nil},
@@ -95,7 +95,7 @@ func TestBatchInvokeHandler(t *testing.T) {
 	result3, err := e.Run(context.Background(), req3)
 	require.NoError(t, err)
 	require.Equal(t, &Results{
-		results: []*Result{
+		Results: []*Result{
 			{nil, ErrBatchInvokeResultSizeNotMatch},
 			{nil, ErrBatchInvokeResultSizeNotMatch},
 			{nil, ErrBatchInvokeResultSizeNotMatch},
@@ -106,7 +106,7 @@ func TestBatchInvokeHandler(t *testing.T) {
 	result4, err := e.Run(context.Background(), req4)
 	require.NoError(t, err)
 	require.Equal(t, &Results{
-		results: []*Result{
+		Results: []*Result{
 			{nil, ErrNoResult},
 			{nil, ErrNoResult},
 			{nil, ErrNoResult},

@@ -1,9 +1,11 @@
 package appsync
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
+	"github.com/onedaycat/errors"
 	"github.com/stretchr/testify/require"
 )
 
@@ -103,226 +105,710 @@ func TestParseInvokeEvent(t *testing.T) {
 	}
 }
 
-// func TestMainHandlerAndPassDataToMainPostHandler(t *testing.T) {
-// 	triggerCount := 0
-// 	expectedResultRawJSON := json.RawMessage(`{id:"id_test", check: 88}`)
-// 	postFuncResult := []byte{}
-// 	inputData := &Event{
-// 		Field: "manyfunctions",
-// 	}
+func TestInvokeErrorHandler(t *testing.T) {
+	fnErr := errors.InternalError("fn", "fnerror")
+	isRunErr := false
 
-// 	testMainHandlers := &MainHandler{
-// 		preHandlers: []PreHandler{
-// 			func(ctx context.Context, event *Event) error {
-// 				triggerCount++
-// 				return nil
-// 			},
-// 		},
-// 		handler: func(ctx context.Context, event *Event) (interface{}, error) {
-// 			triggerCount++
-// 			return json.RawMessage(`{id:"id_test", check: 88}`), nil
-// 		},
-// 		postHandlers: []PostHandler{
-// 			func(ctx context.Context, event *Event, result interface{}, err error) {
-// 				triggerCount++
-// 				postFuncResult = result.(json.RawMessage)
-// 			},
-// 		},
-// 	}
+	fn1 := func(ctx context.Context, event *InvokeEvent) *Result {
+		isRunErr = true
+		return event.ErrorResult(fnErr)
+	}
 
-// 	eventManager := NewEventManager()
-// 	eventManager.RegisterField("manyfunctions", testMainHandlers.handler, testMainHandlers.preHandlers, testMainHandlers.postHandlers)
+	errfn := func(ctx context.Context, event *InvokeEvent, err error) {
+		require.Equal(t, fnErr, err)
+	}
 
-// 	result, err := eventManager.Run(context.Background(), inputData)
-// 	require.Nil(t, err)
-// 	require.Equal(t, 3, triggerCount)
-// 	require.Equal(t, string(expectedResultRawJSON), string(result.Data.(json.RawMessage)))
-// 	require.Equal(t, string(postFuncResult), string(result.Data.(json.RawMessage)))
+	e := NewEventManager()
+	e.RegisterInvoke("fn1", fn1, nil, nil)
+	e.OnInvokeError(errfn)
 
-// }
+	req1 := &Request{
+		eventType: eventInvokeType,
+		InvokeEvent: &InvokeEvent{
+			Field: "fn1",
+		},
+	}
 
-// func TestPreMainHandlerTransformInput(t *testing.T) {
-// 	triggerCount := 0
-// 	inputData := &Event{
-// 		Field: "testprefunctions",
-// 		Args:  json.RawMessage(`{input: "no_edit"}`),
-// 	}
-// 	expectedResultRawJSON := json.RawMessage(`{input: "edited"}`)
-// 	preInputData := []byte{}
+	result1, err := e.Run(context.Background(), req1)
+	require.NoError(t, err)
+	require.Equal(t, &Result{
+		Data:  nil,
+		Error: fnErr,
+	}, result1)
+	require.True(t, isRunErr)
+}
 
-// 	testMainHandlers := &MainHandler{
-// 		preHandlers: []PreHandler{
-// 			func(ctx context.Context, event *Event) error {
-// 				triggerCount++
-// 				event.Args = json.RawMessage(`{input: "edited"}`)
-// 				return nil
-// 			},
-// 		},
-// 		handler: func(ctx context.Context, event *Event) (interface{}, error) {
-// 			triggerCount++
-// 			return event.Args, nil
-// 		},
-// 		postHandlers: []PostHandler{
-// 			func(ctx context.Context, event *Event, result interface{}, err error) {
-// 				triggerCount++
-// 				preInputData = event.Args
-// 			},
-// 		},
-// 	}
+func TestBatchInvokeErrorHandler(t *testing.T) {
+	fnErr := errors.InternalError("fn", "fnerror")
+	isRunErr := false
 
-// 	eventManager := NewEventManager()
-// 	eventManager.RegisterField("testprefunctions", testMainHandlers.handler, testMainHandlers.preHandlers, testMainHandlers.postHandlers)
+	fn1 := func(ctx context.Context, event *BatchInvokeEvent) *Results {
+		isRunErr = true
+		return event.ErrorResult(fnErr)
+	}
 
-// 	result, err := eventManager.Run(context.Background(), inputData)
-// 	resultRawJSON := result.Data.(json.RawMessage)
+	errfn := func(ctx context.Context, event *BatchInvokeEvent, err error) {
+		require.Equal(t, fnErr, err)
+	}
 
-// 	require.Nil(t, err)
-// 	require.Equal(t, 3, triggerCount)
-// 	require.Equal(t, string(expectedResultRawJSON), string(resultRawJSON))
-// 	require.Equal(t, string(preInputData), string(resultRawJSON))
-// }
+	e := NewEventManager()
+	e.RegisterBatchInvoke("fn1", fn1, nil, nil)
+	e.OnBatchInvokeError(errfn)
 
-// func TestPreMainHandlerError(t *testing.T) {
-// 	triggerCount := 0
-// 	inputData := &Event{
-// 		Field: "testPreError",
-// 		Args:  json.RawMessage(`{input: "no_edit"}`),
-// 	}
-// 	testMainHandlers := &MainHandler{
-// 		preHandlers: []PreHandler{
-// 			func(ctx context.Context, event *Event) error {
-// 				triggerCount++
-// 				return nil
-// 			},
-// 			func(ctx context.Context, event *Event) error {
-// 				triggerCount++
-// 				return errors.InternalErrorf("TEST_ERROR", "ERROR_AT_PRE_MAIN_HANDLE")
-// 			},
-// 		},
-// 		handler: func(ctx context.Context, event *Event) (interface{}, error) {
-// 			triggerCount++
-// 			return event.Args, nil
-// 		},
-// 		postHandlers: []PostHandler{
-// 			func(ctx context.Context, event *Event, result interface{}, err error) {
-// 				triggerCount++
-// 			},
-// 		},
-// 	}
+	req1 := &Request{
+		eventType: eventBatchInvokeType,
+		BatchInvokeEvent: &BatchInvokeEvent{
+			Field:   "fn1",
+			NSource: 3,
+		},
+	}
 
-// 	eventManager := NewEventManager()
-// 	eventManager.RegisterField("testPreError", testMainHandlers.handler, testMainHandlers.preHandlers, testMainHandlers.postHandlers)
+	result1, err := e.Run(context.Background(), req1)
+	require.NoError(t, err)
+	require.Equal(t, &Results{
+		Results: []*Result{
+			{nil, fnErr},
+			{nil, fnErr},
+			{nil, fnErr},
+		},
+		Error: fnErr,
+	}, result1)
+	require.True(t, isRunErr)
+}
 
-// 	result, err := eventManager.Run(context.Background(), inputData)
-// 	require.Nil(t, err)
-// 	require.Equal(t, 2, triggerCount)
-// 	require.Equal(t, "TEST_ERROR: ERROR_AT_PRE_MAIN_HANDLE", result.Error.Error())
-// }
+func TestFieldNotFound(t *testing.T) {
+	e := NewEventManager()
 
-// func TestTransformInputDataAtPreHandlersAndPassToPostHandlers(t *testing.T) {
-// 	triggerCount := 0
-// 	inputData := &Event{
-// 		Field: "transFromPreInputToPostHandlers",
-// 		Args:  json.RawMessage(`{input: "no_edit"}`),
-// 	}
-// 	expectedResultRawJSON := json.RawMessage(`{input: "edited"}`)
-// 	postInput := []byte{}
-// 	var postResult interface{}
+	reqBatchInvoke := &Request{
+		eventType: eventBatchInvokeType,
+		BatchInvokeEvent: &BatchInvokeEvent{
+			Field:   "fn1",
+			NSource: 3,
+		},
+	}
 
-// 	testPreHandlers := []PreHandler{
-// 		func(ctx context.Context, event *Event) error {
-// 			triggerCount++
-// 			event.Args = json.RawMessage(`{input: "edited"}`)
-// 			return nil
-// 		},
-// 		func(ctx context.Context, event *Event) error {
-// 			triggerCount++
-// 			return nil
-// 		},
-// 	}
-// 	testMainHandlers := &MainHandler{
-// 		preHandlers: []PreHandler{
-// 			func(ctx context.Context, event *Event) error {
-// 				triggerCount++
-// 				return nil
-// 			},
-// 			func(ctx context.Context, event *Event) error {
-// 				triggerCount++
-// 				return nil
-// 			},
-// 		},
-// 		handler: func(ctx context.Context, event *Event) (interface{}, error) {
-// 			triggerCount++
-// 			return event.Args, nil
-// 		},
-// 		postHandlers: []PostHandler{
-// 			func(ctx context.Context, event *Event, result interface{}, err error) {
-// 				triggerCount++
-// 			},
-// 		},
-// 	}
-// 	testPostHandlers := []PostHandler{
-// 		func(ctx context.Context, event *Event, result interface{}, err error) {
-// 			triggerCount++
+	batchInvoke, err := e.Run(context.Background(), reqBatchInvoke)
+	require.NoError(t, err)
+	require.Equal(t, &Results{
+		Results: []*Result{
+			{nil, ErrFieldNotFound("fn1")},
+			{nil, ErrFieldNotFound("fn1")},
+			{nil, ErrFieldNotFound("fn1")},
+		},
+		Error: ErrFieldNotFound("fn1"),
+	}, batchInvoke)
 
-// 		},
-// 		func(ctx context.Context, event *Event, result interface{}, err error) {
-// 			triggerCount++
-// 			postInput = event.Args
-// 			postResult = result
-// 		},
-// 	}
+	reqInvoke := &Request{
+		eventType: eventInvokeType,
+		InvokeEvent: &InvokeEvent{
+			Field: "fn1",
+		},
+	}
 
-// 	eventManager := NewEventManager()
-// 	eventManager.UsePreHandler(testPreHandlers...)
-// 	eventManager.UsePostHandler(testPostHandlers...)
-// 	eventManager.RegisterField("transFromPreInputToPostHandlers", testMainHandlers.handler, testMainHandlers.preHandlers, testMainHandlers.postHandlers)
+	invoke, err := e.Run(context.Background(), reqInvoke)
+	require.NoError(t, err)
+	require.Equal(t, &Result{
+		Error: ErrFieldNotFound("fn1"),
+	}, invoke)
+}
 
-// 	result, err := eventManager.Run(context.Background(), inputData)
-// 	if err != nil {
-// 		t.Errorf("Error be nil")
-// 	}
+func TestInvokePreHandler(t *testing.T) {
+	data := "1"
+	fnErr := errors.InternalError("fn", "fnerror")
+	isPreRun := false
+	isPreErrRun := false
+	isHandlerRun := false
+	isErrRun := false
 
-// 	if triggerCount != 8 {
-// 		t.Errorf("Should be run all handlers")
-// 	}
+	req := &Request{
+		eventType: eventInvokeType,
+		InvokeEvent: &InvokeEvent{
+			Field: "fn",
+		},
+	}
 
-// 	resultRawJSON := result.Data.(json.RawMessage)
-// 	require.Equal(t, string(expectedResultRawJSON), string(resultRawJSON))
-// 	require.Equal(t, string(expectedResultRawJSON), string(postInput))
-// 	require.Equal(t, string(expectedResultRawJSON), string(postResult.(json.RawMessage)))
-// }
+	prefn := func(ctx context.Context, event *InvokeEvent) error {
+		isPreRun = true
+		return nil
+	}
 
-// func TestRunOnError(t *testing.T) {
-// 	triggerCount := 0
-// 	inputData := &Event{
-// 		Field: "testError",
-// 	}
+	prefnErr := func(ctx context.Context, event *InvokeEvent) error {
+		isPreErrRun = true
+		return fnErr
+	}
 
-// 	expectedResult := &Result{
-// 		Data:  nil,
-// 		Error: errors.InternalError("UNKNOWN_CODE", "Test unknown error"),
-// 	}
+	errfn := func(ctx context.Context, event *InvokeEvent, err error) {
+		isErrRun = true
+	}
 
-// 	testMainHandlers := &MainHandler{
-// 		preHandlers: []PreHandler{},
-// 		handler: func(ctx context.Context, event *Event) (interface{}, error) {
-// 			return nil, errors.InternalError("UNKNOWN_CODE", "Test unknown error")
-// 		},
-// 		postHandlers: []PostHandler{},
-// 	}
+	fn := func(ctx context.Context, event *InvokeEvent) *Result {
+		isHandlerRun = true
+		return event.Result(data)
+	}
 
-// 	errorFunc := func(ctx context.Context, event *Event, err error) {
-// 		triggerCount++
-// 	}
+	t.Run("Global without error", func(t *testing.T) {
+		isPreRun = false
+		isPreErrRun = false
+		isHandlerRun = false
+		isErrRun = false
 
-// 	eventManager := NewEventManager()
-// 	eventManager.OnError(errorFunc)
-// 	eventManager.RegisterField("testError", testMainHandlers.handler, testMainHandlers.preHandlers, testMainHandlers.postHandlers)
+		e := NewEventManager()
+		e.RegisterInvoke("fn", fn, nil, nil)
+		e.UseInvokePreHandler(prefn)
+		e.OnInvokeError(errfn)
 
-// 	result, err := eventManager.Run(context.Background(), inputData)
+		result1, err := e.Run(context.Background(), req)
+		require.NoError(t, err)
+		require.Equal(t, &Result{
+			Data:  data,
+			Error: nil,
+		}, result1)
+		require.True(t, isPreRun)
+		require.True(t, isHandlerRun)
+		require.False(t, isErrRun)
+		require.False(t, isPreErrRun)
+	})
 
-// 	require.Nil(t, err)
-// 	require.Equal(t, expectedResult, result)
-// 	require.Equal(t, 1, triggerCount)
-// }
+	t.Run("Global with error", func(t *testing.T) {
+		isPreRun = false
+		isPreErrRun = false
+		isHandlerRun = false
+		isErrRun = false
+
+		e := NewEventManager()
+		e.RegisterInvoke("fn", fn, nil, nil)
+		e.UseInvokePreHandler(prefn, prefnErr)
+		e.OnInvokeError(errfn)
+
+		result1, err := e.Run(context.Background(), req)
+		require.NoError(t, err)
+		require.Equal(t, &Result{
+			Data:  nil,
+			Error: fnErr,
+		}, result1)
+		require.True(t, isPreRun)
+		require.False(t, isHandlerRun)
+		require.True(t, isErrRun)
+		require.True(t, isPreErrRun)
+		require.True(t, isPreErrRun)
+	})
+
+	t.Run("In handler with error", func(t *testing.T) {
+		isPreRun = false
+		isPreErrRun = false
+		isHandlerRun = false
+		isErrRun = false
+
+		e := NewEventManager()
+		e.RegisterInvoke("fn", fn, []InvokePreHandler{prefnErr}, nil)
+		e.UseInvokePreHandler(prefn)
+		e.OnInvokeError(errfn)
+
+		result1, err := e.Run(context.Background(), req)
+		require.NoError(t, err)
+		require.Equal(t, &Result{
+			Data:  nil,
+			Error: fnErr,
+		}, result1)
+		require.True(t, isPreRun)
+		require.False(t, isHandlerRun)
+		require.True(t, isErrRun)
+		require.True(t, isPreErrRun)
+		require.True(t, isPreErrRun)
+	})
+}
+
+func TestBatchInvokePreHandler(t *testing.T) {
+	data := "1"
+	fnErr := errors.InternalError("fn", "fnerror")
+	isPreRun := false
+	isPreErrRun := false
+	isHandlerRun := false
+	isErrRun := false
+
+	req := &Request{
+		eventType: eventBatchInvokeType,
+		BatchInvokeEvent: &BatchInvokeEvent{
+			Field:   "fn",
+			NSource: 1,
+		},
+	}
+
+	prefn := func(ctx context.Context, event *BatchInvokeEvent) error {
+		isPreRun = true
+		return nil
+	}
+
+	prefnErr := func(ctx context.Context, event *BatchInvokeEvent) error {
+		isPreErrRun = true
+		return fnErr
+	}
+
+	errfn := func(ctx context.Context, event *BatchInvokeEvent, err error) {
+		isErrRun = true
+	}
+
+	fn := func(ctx context.Context, event *BatchInvokeEvent) *Results {
+		isHandlerRun = true
+		return event.Result([]*Result{
+			{data, nil},
+		})
+	}
+
+	t.Run("Global without error", func(t *testing.T) {
+		isPreRun = false
+		isPreErrRun = false
+		isHandlerRun = false
+		isErrRun = false
+
+		e := NewEventManager()
+		e.RegisterBatchInvoke("fn", fn, nil, nil)
+		e.UseBatchInvokePreHandler(prefn)
+		e.OnBatchInvokeError(errfn)
+
+		result1, err := e.Run(context.Background(), req)
+		require.NoError(t, err)
+		require.Equal(t, &Results{
+			Results: []*Result{
+				{data, nil},
+			},
+			Error: nil,
+		}, result1)
+		require.True(t, isPreRun)
+		require.True(t, isHandlerRun)
+		require.False(t, isErrRun)
+		require.False(t, isPreErrRun)
+	})
+
+	t.Run("Global with error", func(t *testing.T) {
+		isPreRun = false
+		isPreErrRun = false
+		isHandlerRun = false
+		isErrRun = false
+
+		e := NewEventManager()
+		e.RegisterBatchInvoke("fn", fn, nil, nil)
+		e.UseBatchInvokePreHandler(prefn, prefnErr)
+		e.OnBatchInvokeError(errfn)
+
+		result1, err := e.Run(context.Background(), req)
+		require.NoError(t, err)
+		require.Equal(t, &Results{
+			Results: []*Result{
+				{nil, fnErr},
+			},
+			Error: fnErr,
+		}, result1)
+		require.True(t, isPreRun)
+		require.False(t, isHandlerRun)
+		require.True(t, isErrRun)
+		require.True(t, isPreErrRun)
+		require.True(t, isPreErrRun)
+	})
+
+	t.Run("In handler with error", func(t *testing.T) {
+		isPreRun = false
+		isPreErrRun = false
+		isHandlerRun = false
+		isErrRun = false
+
+		e := NewEventManager()
+		e.RegisterBatchInvoke("fn", fn, []BatchInvokePreHandler{prefnErr}, nil)
+		e.UseBatchInvokePreHandler(prefn)
+		e.OnBatchInvokeError(errfn)
+
+		result1, err := e.Run(context.Background(), req)
+		require.NoError(t, err)
+		require.Equal(t, &Results{
+			Results: []*Result{
+				{nil, fnErr},
+			},
+			Error: fnErr,
+		}, result1)
+		require.True(t, isPreRun)
+		require.False(t, isHandlerRun)
+		require.True(t, isErrRun)
+		require.True(t, isPreErrRun)
+		require.True(t, isPreErrRun)
+	})
+}
+
+func TestInvokePostHandler(t *testing.T) {
+	data := "1"
+	resultErr := errors.InternalError("fn", "fnerror")
+	fnErr := false
+	localErr := false
+	globalErr := false
+
+	isLocalRun := false
+	isGlobalRun := false
+	isLocalErrRun := false
+	isGlobalErrRun := false
+	isHandlerRun := false
+	isHandlerErrRun := false
+	isErrRun := false
+
+	req := &Request{
+		eventType: eventInvokeType,
+		InvokeEvent: &InvokeEvent{
+			Field: "fn",
+		},
+	}
+
+	localfn := func(ctx context.Context, event *InvokeEvent, result *Result) error {
+		if localErr {
+			isLocalRun = true
+			isLocalErrRun = true
+			return resultErr
+		}
+		isLocalRun = true
+		isLocalErrRun = false
+
+		return nil
+	}
+
+	globalfn := func(ctx context.Context, event *InvokeEvent, result *Result) error {
+		if globalErr {
+			isGlobalRun = true
+			isGlobalErrRun = true
+			return resultErr
+		}
+		isGlobalRun = true
+		isGlobalErrRun = false
+
+		return nil
+	}
+
+	errfn := func(ctx context.Context, event *InvokeEvent, err error) {
+		isErrRun = true
+	}
+
+	fn := func(ctx context.Context, event *InvokeEvent) *Result {
+		if fnErr {
+			isHandlerRun = true
+			isHandlerErrRun = true
+			return event.ErrorResult(resultErr)
+		}
+		isHandlerRun = true
+		isHandlerErrRun = false
+		return event.Result(data)
+	}
+
+	t.Run("Handler error before and no error in post fn", func(t *testing.T) {
+		fnErr = true
+		localErr = false
+		globalErr = false
+
+		isLocalRun = false
+		isGlobalRun = false
+		isLocalErrRun = false
+		isGlobalErrRun = false
+		isHandlerRun = false
+		isHandlerErrRun = false
+		isErrRun = false
+
+		e := NewEventManager()
+		e.RegisterInvoke("fn", fn, nil, []InvokePostHandler{localfn})
+		e.UseInvokePostHandler(globalfn)
+		e.OnInvokeError(errfn)
+
+		result1, err := e.Run(context.Background(), req)
+		require.NoError(t, err)
+		require.Equal(t, &Result{
+			Data:  nil,
+			Error: resultErr,
+		}, result1)
+		require.True(t, isLocalRun)
+		require.False(t, isLocalErrRun)
+		require.True(t, isGlobalRun)
+		require.False(t, isGlobalErrRun)
+		require.True(t, isHandlerRun)
+		require.True(t, isHandlerErrRun)
+		require.True(t, isErrRun)
+	})
+
+	t.Run("Handler error before and error on local", func(t *testing.T) {
+		fnErr = true
+		localErr = true
+		globalErr = false
+
+		isLocalRun = false
+		isGlobalRun = false
+		isLocalErrRun = false
+		isGlobalErrRun = false
+		isHandlerRun = false
+		isHandlerErrRun = false
+		isErrRun = false
+
+		e := NewEventManager()
+		e.RegisterInvoke("fn", fn, nil, []InvokePostHandler{localfn})
+		e.UseInvokePostHandler(globalfn)
+		e.OnInvokeError(errfn)
+
+		result1, err := e.Run(context.Background(), req)
+		require.NoError(t, err)
+		require.Equal(t, &Result{
+			Data:  nil,
+			Error: resultErr,
+		}, result1)
+		require.True(t, isLocalRun)
+		require.True(t, isLocalErrRun)
+		require.False(t, isGlobalRun)
+		require.False(t, isGlobalErrRun)
+		require.True(t, isHandlerRun)
+		require.True(t, isHandlerErrRun)
+		require.True(t, isErrRun)
+	})
+
+	t.Run("Handler error before and error on global", func(t *testing.T) {
+		fnErr = true
+		localErr = false
+		globalErr = true
+
+		isLocalRun = false
+		isGlobalRun = false
+		isLocalErrRun = false
+		isGlobalErrRun = false
+		isHandlerRun = false
+		isHandlerErrRun = false
+		isErrRun = false
+
+		e := NewEventManager()
+		e.RegisterInvoke("fn", fn, nil, []InvokePostHandler{localfn})
+		e.UseInvokePostHandler(globalfn)
+		e.OnInvokeError(errfn)
+
+		result1, err := e.Run(context.Background(), req)
+		require.NoError(t, err)
+		require.Equal(t, &Result{
+			Data:  nil,
+			Error: resultErr,
+		}, result1)
+		require.True(t, isLocalRun)
+		require.False(t, isLocalErrRun)
+		require.True(t, isGlobalRun)
+		require.True(t, isGlobalErrRun)
+		require.True(t, isHandlerRun)
+		require.True(t, isHandlerErrRun)
+		require.True(t, isErrRun)
+	})
+
+	t.Run("Handler and run local and post", func(t *testing.T) {
+		fnErr = false
+		localErr = false
+		globalErr = false
+
+		isLocalRun = false
+		isGlobalRun = false
+		isLocalErrRun = false
+		isGlobalErrRun = false
+		isHandlerRun = false
+		isHandlerErrRun = false
+		isErrRun = false
+
+		e := NewEventManager()
+		e.RegisterInvoke("fn", fn, nil, []InvokePostHandler{localfn})
+		e.UseInvokePostHandler(globalfn)
+		e.OnInvokeError(errfn)
+
+		result1, err := e.Run(context.Background(), req)
+		require.NoError(t, err)
+		require.Equal(t, &Result{
+			Data:  data,
+			Error: nil,
+		}, result1)
+		require.True(t, isLocalRun)
+		require.False(t, isLocalErrRun)
+		require.True(t, isGlobalRun)
+		require.False(t, isGlobalErrRun)
+		require.True(t, isHandlerRun)
+		require.False(t, isHandlerErrRun)
+		require.False(t, isErrRun)
+	})
+}
+
+func TestBatchInvokePostHandler(t *testing.T) {
+	data := "1"
+	resultErr := errors.InternalError("fn", "fnerror")
+	fnErr := false
+	localErr := false
+	globalErr := false
+
+	isLocalRun := false
+	isGlobalRun := false
+	isLocalErrRun := false
+	isGlobalErrRun := false
+	isHandlerRun := false
+	isHandlerErrRun := false
+	isErrRun := false
+
+	req := &Request{
+		eventType: eventBatchInvokeType,
+		BatchInvokeEvent: &BatchInvokeEvent{
+			Field:   "fn",
+			NSource: 1,
+		},
+	}
+
+	localfn := func(ctx context.Context, event *BatchInvokeEvent, results *Results) error {
+		if localErr {
+			isLocalRun = true
+			isLocalErrRun = true
+			return resultErr
+		}
+		isLocalRun = true
+		isLocalErrRun = false
+
+		return nil
+	}
+
+	globalfn := func(ctx context.Context, event *BatchInvokeEvent, results *Results) error {
+		if globalErr {
+			isGlobalRun = true
+			isGlobalErrRun = true
+			return resultErr
+		}
+		isGlobalRun = true
+		isGlobalErrRun = false
+
+		return nil
+	}
+
+	errfn := func(ctx context.Context, event *BatchInvokeEvent, err error) {
+		isErrRun = true
+	}
+
+	fn := func(ctx context.Context, event *BatchInvokeEvent) *Results {
+		if fnErr {
+			isHandlerRun = true
+			isHandlerErrRun = true
+			return event.ErrorResult(resultErr)
+		}
+		isHandlerRun = true
+		isHandlerErrRun = false
+		return event.Result([]*Result{{data, nil}})
+	}
+
+	t.Run("Handler error before and no error in post fn", func(t *testing.T) {
+		fnErr = true
+		localErr = false
+		globalErr = false
+
+		isLocalRun = false
+		isGlobalRun = false
+		isLocalErrRun = false
+		isGlobalErrRun = false
+		isHandlerRun = false
+		isHandlerErrRun = false
+		isErrRun = false
+
+		e := NewEventManager()
+		e.RegisterBatchInvoke("fn", fn, nil, []BatchInvokePostHandler{localfn})
+		e.UseBatchInvokePostHandler(globalfn)
+		e.OnBatchInvokeError(errfn)
+
+		result1, err := e.Run(context.Background(), req)
+		require.NoError(t, err)
+		require.Equal(t, makeErrorResults(1, resultErr), result1)
+		require.True(t, isLocalRun)
+		require.False(t, isLocalErrRun)
+		require.True(t, isGlobalRun)
+		require.False(t, isGlobalErrRun)
+		require.True(t, isHandlerRun)
+		require.True(t, isHandlerErrRun)
+		require.True(t, isErrRun)
+	})
+
+	t.Run("Handler error before and error on local", func(t *testing.T) {
+		fnErr = true
+		localErr = true
+		globalErr = false
+
+		isLocalRun = false
+		isGlobalRun = false
+		isLocalErrRun = false
+		isGlobalErrRun = false
+		isHandlerRun = false
+		isHandlerErrRun = false
+		isErrRun = false
+
+		e := NewEventManager()
+		e.RegisterBatchInvoke("fn", fn, nil, []BatchInvokePostHandler{localfn})
+		e.UseBatchInvokePostHandler(globalfn)
+		e.OnBatchInvokeError(errfn)
+
+		result1, err := e.Run(context.Background(), req)
+		require.NoError(t, err)
+		require.Equal(t, makeErrorResults(1, resultErr), result1)
+		require.True(t, isLocalRun)
+		require.True(t, isLocalErrRun)
+		require.False(t, isGlobalRun)
+		require.False(t, isGlobalErrRun)
+		require.True(t, isHandlerRun)
+		require.True(t, isHandlerErrRun)
+		require.True(t, isErrRun)
+	})
+
+	t.Run("Handler error before and error on global", func(t *testing.T) {
+		fnErr = true
+		localErr = false
+		globalErr = true
+
+		isLocalRun = false
+		isGlobalRun = false
+		isLocalErrRun = false
+		isGlobalErrRun = false
+		isHandlerRun = false
+		isHandlerErrRun = false
+		isErrRun = false
+
+		e := NewEventManager()
+		e.RegisterBatchInvoke("fn", fn, nil, []BatchInvokePostHandler{localfn})
+		e.UseBatchInvokePostHandler(globalfn)
+		e.OnBatchInvokeError(errfn)
+
+		result1, err := e.Run(context.Background(), req)
+		require.NoError(t, err)
+		require.Equal(t, makeErrorResults(1, resultErr), result1)
+		require.True(t, isLocalRun)
+		require.False(t, isLocalErrRun)
+		require.True(t, isGlobalRun)
+		require.True(t, isGlobalErrRun)
+		require.True(t, isHandlerRun)
+		require.True(t, isHandlerErrRun)
+		require.True(t, isErrRun)
+	})
+
+	t.Run("Handler and run local and post", func(t *testing.T) {
+		fnErr = false
+		localErr = false
+		globalErr = false
+
+		isLocalRun = false
+		isGlobalRun = false
+		isLocalErrRun = false
+		isGlobalErrRun = false
+		isHandlerRun = false
+		isHandlerErrRun = false
+		isErrRun = false
+
+		e := NewEventManager()
+		e.RegisterBatchInvoke("fn", fn, nil, []BatchInvokePostHandler{localfn})
+		e.UseBatchInvokePostHandler(globalfn)
+		e.OnBatchInvokeError(errfn)
+
+		result1, err := e.Run(context.Background(), req)
+		require.NoError(t, err)
+		require.Equal(t, &Results{
+			Results: []*Result{{data, nil}},
+			Error:   nil,
+		}, result1)
+		require.True(t, isLocalRun)
+		require.False(t, isLocalErrRun)
+		require.True(t, isGlobalRun)
+		require.False(t, isGlobalErrRun)
+		require.True(t, isHandlerRun)
+		require.False(t, isHandlerErrRun)
+		require.False(t, isErrRun)
+	})
+}

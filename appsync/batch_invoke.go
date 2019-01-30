@@ -40,7 +40,7 @@ func (e *BatchInvokeEvent) Result(results []*Result) *Results {
 	}
 
 	result := &Results{
-		results: results,
+		Results: results,
 		Error:   nil,
 	}
 
@@ -52,19 +52,19 @@ func (e *BatchInvokeEvent) ErrorResult(err error) *Results {
 }
 
 type Results struct {
-	results []*Result
+	Results []*Result
 	Error   error
 }
 
 func makeErrorResults(n int, err error) *Results {
 	aerr := makeError(err)
 	result := &Results{
-		results: make([]*Result, n),
+		Results: make([]*Result, n),
 		Error:   aerr,
 	}
 
 	for i := 0; i < n; i++ {
-		result.results[i] = &Result{
+		result.Results[i] = &Result{
 			Data:  nil,
 			Error: aerr,
 		}

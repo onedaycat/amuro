@@ -36,7 +36,7 @@ func (r *Request) UnmarshalJSON(b []byte) error {
 		}
 
 		if len(r.invokeEvents) == 0 {
-			return errors.Newf("No data in batch invoke")
+			return ErrNoBatchInvokeData
 		}
 
 		b := bytes.NewBuffer(nil)

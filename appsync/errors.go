@@ -7,6 +7,7 @@ import (
 var (
 	ErrBatchInvokeResultSizeNotMatch = errors.InternalError("AMURO_1", "BatchInvoke result array size not match")
 	ErrNoResult                      = errors.InternalError("AMURO_2", "No Result")
+	ErrNoBatchInvokeData             = errors.InternalError("AMURO_3", "No data in batch invoke")
 )
 
 func ErrFieldNotFound(field string) error {
