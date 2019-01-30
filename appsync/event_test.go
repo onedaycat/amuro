@@ -57,7 +57,7 @@ func TestParseBatchInvokeEvent(t *testing.T) {
 	}
 
 	for _, testcase := range testcases {
-		req := &request{}
+		req := &Request{}
 		err := json.Unmarshal([]byte(testcase.payload), req)
 		require.NoError(t, err)
 		require.Equal(t, testcase.expEvent, req.BatchInvokeEvent)
@@ -96,7 +96,7 @@ func TestParseInvokeEvent(t *testing.T) {
 	}
 
 	for i, testcase := range testcases {
-		req := &request{}
+		req := &Request{}
 		err := json.Unmarshal([]byte(testcase.payload), req)
 		require.NoError(t, err)
 		require.Equal(t, testcase.expEvent, req.InvokeEvent, i)

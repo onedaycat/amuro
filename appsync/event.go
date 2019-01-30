@@ -14,28 +14,28 @@ const (
 	eventBatchInvokeType int = 1
 )
 
-type request struct {
+type Request struct {
 	InvokeEvent      *InvokeEvent
 	BatchInvokeEvent *BatchInvokeEvent
-	InvokeEvents     []*InvokeEvent
+	invokeEvents     []*InvokeEvent
 	eventType        int
 	sources          json.RawMessage
 }
 
-func (r *request) UnmarshalJSON(b []byte) error {
+func (r *Request) UnmarshalJSON(b []byte) error {
 	_, dataTypeRoot, _, err := jsonparser.Get(b)
 	if err != nil {
 		return err
 	}
 
 	if dataTypeRoot == jsonparser.Array {
-		r.InvokeEvents = make(InvokeEvents, 0, 5)
+		r.invokeEvents = make(InvokeEvents, 0, 5)
 		r.eventType = eventBatchInvokeType
-		if err = json.Unmarshal(b, &r.InvokeEvents); err != nil {
+		if err = json.Unmarshal(b, &r.invokeEvents); err != nil {
 			return err
 		}
 
-		if len(r.InvokeEvents) == 0 {
+		if len(r.invokeEvents) == 0 {
 			return errors.Newf("No data in batch invoke")
 		}
 
@@ -43,25 +43,25 @@ func (r *request) UnmarshalJSON(b []byte) error {
 		b.WriteByte(91)
 		first := true
 		n := 0
-		for i := 0; i < len(r.InvokeEvents); i++ {
-			if len(r.InvokeEvents[i].Source) == 0 {
+		for i := 0; i < len(r.invokeEvents); i++ {
+			if len(r.invokeEvents[i].Source) == 0 {
 				continue
 			}
 
 			if !first {
 				b.WriteByte(44)
 			}
-			b.Write(r.InvokeEvents[i].Source)
+			b.Write(r.invokeEvents[i].Source)
 			first = false
 			n = n + 1
 		}
 		b.WriteByte(93)
 
 		r.BatchInvokeEvent = &BatchInvokeEvent{
-			Field:    r.InvokeEvents[0].Field,
-			Args:     r.InvokeEvents[0].Args,
+			Field:    r.invokeEvents[0].Field,
+			Args:     r.invokeEvents[0].Args,
 			Sources:  b.Bytes(),
-			Identity: r.InvokeEvents[0].Identity,
+			Identity: r.invokeEvents[0].Identity,
 			NSource:  n,
 		}
 
@@ -77,11 +77,6 @@ func (r *request) UnmarshalJSON(b []byte) error {
 	}
 
 	return errors.Newf("Unable to UnmarshalJSON of %s", dataTypeRoot.String())
-}
-
-type Result struct {
-	Data  interface{}      `json:"data"`
-	Error *errors.AppError `json:"error"`
 }
 
 type EventManager struct {
@@ -164,137 +159,138 @@ func (e *EventManager) UseBatchInvokePostHandler(handlers ...BatchInvokePostHand
 	e.batchInvokePostHandlers = handlers
 }
 
-func (e *EventManager) runHandleInvokeError(ctx context.Context, event *InvokeEvent, err error, data interface{}) (*Result, error) {
-	e.invokeErrorHandler(ctx, event, err)
-	appErr, ok := errors.FromError(err)
-	if ok {
-		return &Result{
-			Data:  data,
-			Error: appErr,
-		}, nil
-	}
-
-	return &Result{
-		Data:  data,
-		Error: errors.InternalError("UNKNOWN_CODE", err.Error()),
-	}, nil
-}
-
-func (e *EventManager) runInvokePreHandler(ctx context.Context, event *InvokeEvent, handlers []InvokePreHandler) error {
+func (e *EventManager) runInvokePreHandler(ctx context.Context, event *InvokeEvent, handlers []InvokePreHandler) *Result {
 	for _, handler := range handlers {
 		if err := handler(ctx, event); err != nil {
-			return err
+			e.invokeErrorHandler(ctx, event, err)
+			return &Result{
+				Data:  nil,
+				Error: makeError(err),
+			}
 		}
 	}
 
 	return nil
 }
 
-func (e *EventManager) runInvokePostHandler(ctx context.Context, event *InvokeEvent, data interface{}, handlerErr error, handlers []InvokePostHandler) {
+func (e *EventManager) runInvokePostHandler(ctx context.Context, event *InvokeEvent, result *Result, handlers []InvokePostHandler) *Result {
 	for _, handler := range handlers {
-		handler(ctx, event, data, handlerErr)
-	}
-}
-
-func (e *EventManager) runHandleBatchInvokeError(ctx context.Context, event *BatchInvokeEvent, err error, data interface{}) (*Result, error) {
-	e.batchInvokeErrorHandler(ctx, event, err)
-	appErr, ok := errors.FromError(err)
-	if ok {
-		return &Result{
-			Data:  data,
-			Error: appErr,
-		}, nil
-	}
-
-	return &Result{
-		Data:  data,
-		Error: errors.InternalError("UNKNOWN_CODE", err.Error()),
-	}, nil
-}
-
-func (e *EventManager) runBatchInvokePreHandler(ctx context.Context, event *BatchInvokeEvent, handlers []BatchInvokePreHandler) error {
-	for _, handler := range handlers {
-		if err := handler(ctx, event); err != nil {
-			return err
+		if err := handler(ctx, event, result); err != nil {
+			e.invokeErrorHandler(ctx, event, err)
+			return &Result{
+				Data:  nil,
+				Error: makeError(err),
+			}
 		}
 	}
 
 	return nil
 }
 
-func (e *EventManager) runBatchInvokePostHandler(ctx context.Context, event *BatchInvokeEvent, data interface{}, handlerErr error, handlers []BatchInvokePostHandler) {
+func (e *EventManager) runBatchInvokePreHandler(ctx context.Context, event *BatchInvokeEvent, handlers []BatchInvokePreHandler) *Results {
 	for _, handler := range handlers {
-		handler(ctx, event, data, handlerErr)
+		if err := handler(ctx, event); err != nil {
+			e.batchInvokeErrorHandler(ctx, event, err)
+			return makeErrorResults(event.NSource, err)
+		}
 	}
+
+	return nil
 }
 
-func (e *EventManager) Run(ctx context.Context, req *request) (interface{}, error) {
+func (e *EventManager) runBatchInvokePostHandler(ctx context.Context, event *BatchInvokeEvent, results *Results, handlers []BatchInvokePostHandler) *Results {
+	for _, handler := range handlers {
+		if err := handler(ctx, event, results); err != nil {
+			e.batchInvokeErrorHandler(ctx, event, err)
+			return makeErrorResults(event.NSource, err)
+		}
+	}
+
+	return nil
+}
+
+func (e *EventManager) Run(ctx context.Context, req *Request) (interface{}, error) {
 	switch req.eventType {
 	case eventBatchInvokeType:
 		event := req.BatchInvokeEvent
 		if mainHandler, ok := e.batchInvokeFields[event.Field]; ok {
-			if err := e.runBatchInvokePreHandler(ctx, event, e.batchInvokePreHandlers); err != nil {
-				return e.runHandleBatchInvokeError(ctx, event, err, nil)
+			if xresult := e.runBatchInvokePreHandler(ctx, event, e.batchInvokePreHandlers); xresult != nil {
+				return xresult, nil
 			}
 
-			if err := e.runBatchInvokePreHandler(ctx, event, mainHandler.preHandlers); err != nil {
-				return e.runHandleBatchInvokeError(ctx, event, err, nil)
+			if xresult := e.runBatchInvokePreHandler(ctx, event, mainHandler.preHandlers); xresult != nil {
+				return xresult, nil
 			}
 
-			data, err := mainHandler.handler(ctx, event)
-			if err != nil {
-				errs := make([]interface{}, 0, event.NSource)
-				for i := 0; i < event.NSource; i++ {
-					errs = append(errs, err)
-				}
+			results := mainHandler.handler(ctx, event)
+			if results == nil {
+				results := makeErrorResults(event.NSource, ErrNoResult)
+				e.batchInvokeErrorHandler(ctx, event, results.Error)
 
-				return errs, nil
+				return results, nil
 			}
 
-			e.runBatchInvokePostHandler(ctx, event, data, err, mainHandler.postHandlers)
-			e.runBatchInvokePostHandler(ctx, event, data, err, e.batchInvokePostHandlers)
-
-			if err != nil {
-				return e.runHandleBatchInvokeError(ctx, event, err, data)
+			if results.Error != nil {
+				e.batchInvokeErrorHandler(ctx, event, results.Error)
 			}
 
-			return data, nil
+			if xresult := e.runBatchInvokePostHandler(ctx, event, results, mainHandler.postHandlers); xresult != nil {
+				return xresult, nil
+			}
+
+			if xresult := e.runBatchInvokePostHandler(ctx, event, results, e.batchInvokePostHandlers); xresult != nil {
+				return xresult, nil
+			}
+
+			return results, nil
 		}
 
-		err := errors.InternalErrorf("FIELD_NOT_FOUND", "Not found handler on field %s", event.Field)
-		e.runHandleBatchInvokeError(ctx, event, err, nil)
+		err := ErrFieldNotFound(event.Field)
+		e.batchInvokeErrorHandler(ctx, event, err)
+		return makeErrorResults(event.NSource, err), nil
 
-		return nil, err
 	case eventInvokeType:
 		event := req.InvokeEvent
 		if mainHandler, ok := e.invokeFields[event.Field]; ok {
-			if err := e.runInvokePreHandler(ctx, event, e.invokePreHandlers); err != nil {
-				return e.runHandleInvokeError(ctx, event, err, nil)
+			if xresult := e.runInvokePreHandler(ctx, event, e.invokePreHandlers); xresult != nil {
+				return xresult, nil
 			}
 
-			if err := e.runInvokePreHandler(ctx, event, mainHandler.preHandlers); err != nil {
-				return e.runHandleInvokeError(ctx, event, err, nil)
+			if xresult := e.runInvokePreHandler(ctx, event, mainHandler.preHandlers); xresult != nil {
+				return xresult, nil
 			}
 
-			data, err := mainHandler.handler(ctx, event)
+			result := mainHandler.handler(ctx, event)
+			if result == nil {
+				result := &Result{
+					Data:  nil,
+					Error: ErrNoResult,
+				}
+				e.invokeErrorHandler(ctx, event, result.Error)
 
-			e.runInvokePostHandler(ctx, event, data, err, mainHandler.postHandlers)
-			e.runInvokePostHandler(ctx, event, data, err, e.invokePostHandlers)
-
-			if err != nil {
-				return e.runHandleInvokeError(ctx, event, err, data)
+				return result, nil
 			}
 
-			return &Result{
-				Data:  data,
-				Error: nil,
-			}, nil
+			if result.Error != nil {
+				e.invokeErrorHandler(ctx, event, result.Error)
+			}
+
+			if xresult := e.runInvokePostHandler(ctx, event, result, mainHandler.postHandlers); xresult != nil {
+				return xresult, nil
+			}
+
+			if xresult := e.runInvokePostHandler(ctx, event, result, e.invokePostHandlers); xresult != nil {
+				return xresult, nil
+			}
+
+			return result, nil
 		}
 
-		err := errors.InternalErrorf("FIELD_NOT_FOUND", "Not found handler on field %s", event.Field)
-		e.runHandleInvokeError(ctx, event, err, nil)
-
-		return nil, err
+		err := ErrFieldNotFound(event.Field)
+		e.invokeErrorHandler(ctx, event, err)
+		return &Result{
+			Error: err,
+		}, nil
 	}
 
 	return nil, errors.InternalErrorf("FIELD_NOT_FOUND", "Not found handler")

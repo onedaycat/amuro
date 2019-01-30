@@ -6,8 +6,8 @@ import (
 )
 
 type InvokePreHandler func(ctx context.Context, event *InvokeEvent) error
-type InvokePostHandler func(ctx context.Context, event *InvokeEvent, result interface{}, err error)
-type InvokeEventHandler func(ctx context.Context, event *InvokeEvent) (interface{}, error)
+type InvokePostHandler func(ctx context.Context, event *InvokeEvent, result *Result) error
+type InvokeEventHandler func(ctx context.Context, event *InvokeEvent) *Result
 type InvokeErrorHandler func(ctx context.Context, event *InvokeEvent, err error)
 
 type invokeHandlers struct {
@@ -31,4 +31,23 @@ func (e *InvokeEvent) ParseArgs(v interface{}) error {
 
 func (e *InvokeEvent) ParseSource(v interface{}) error {
 	return json.Unmarshal(e.Source, v)
+}
+
+func (e *InvokeEvent) Result(data interface{}) *Result {
+	return &Result{
+		Data:  data,
+		Error: nil,
+	}
+}
+
+func (e *InvokeEvent) ErrorResult(err error) *Result {
+	return &Result{
+		Data:  nil,
+		Error: makeError(err),
+	}
+}
+
+type Result struct {
+	Data  interface{} `json:"data"`
+	Error error       `json:"error"`
 }
