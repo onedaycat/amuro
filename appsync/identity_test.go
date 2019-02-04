@@ -22,6 +22,9 @@ func TestIdentity(t *testing.T) {
 		   "auth_time":1547875744,
 		   "iss":"https://issuer.com",
 		   "cognito:username":"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+		   "cognito:groups": [
+    			"admin"
+  			],
 		   "exp":1547879344,
 		   "iat":1547875744,
 		   "email":"test@test.com"
